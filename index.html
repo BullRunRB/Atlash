@@ -1,0 +1,2351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta name="safe-app-name" content="ATLASH LearnEarn"/>
+  <meta name="safe-app-description" content="ATLASH Protocol — Learn to Earn on BSC Mainnet"/>
+  <meta name="safe-app-chain-ids" content="56"/>
+  <link rel="icon" href="/favicon.ico"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+  <script>if(typeof process==="undefined")window.process={env:{},version:"",browser:true,nextTick:function(fn){setTimeout(fn,0);}};</script>
+  <title>ATLASH — LearnEarn Protocol</title>
+  <style>
+/* ═══════════════════════════════════════════
+   ATLASH LearnEarn · Blue/White Minimalist
+═══════════════════════════════════════════ */
+:root {
+  --blue:     #1a56db;
+  --blue-dark:#1240b0;
+  --blue-deep:#0a2472;
+  --blue-mid: #2563eb;
+  --blue-lt:  #3b82f6;
+  --blue-bg:  #eff6ff;
+  --blue-bg2: #dbeafe;
+  --blue-line:#bfdbfe;
+
+  --white:    #ffffff;
+  --gray-50:  #f8fafc;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-500: #64748b;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1e293b;
+  --gray-900: #0f172a;
+
+  --green:    #059669;
+  --green-bg: #ecfdf5;
+  --red:      #dc2626;
+  --red-bg:   #fef2f2;
+  --amber:    #d97706;
+  --amber-bg: #fffbeb;
+  --purple:   #7c3aed;
+  --purple-bg:#f5f3ff;
+
+  --ff: 'Plus Jakarta Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.06);
+  --shadow: 0 2px 8px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 20px rgba(0,0,0,.1), 0 2px 6px rgba(0,0,0,.05);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
+  --shadow-blue: 0 8px 32px rgba(26,86,219,.25);
+}
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--white);
+  color:var(--gray-900);
+  font-family:var(--ff);
+  font-size:15px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ═══════════════════════════════════════════
+   SHARED NAV
+═══════════════════════════════════════════ */
+.topbar {
+  position:fixed;top:0;left:0;right:0;z-index:200;
+  height:64px;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--gray-200);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 32px;
+  transition:box-shadow .2s;
+}
+.topbar.scrolled{box-shadow:var(--shadow-md);}
+
+.topbar-brand{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.brand-mark{
+  width:36px;height:36px;
+  background:var(--blue);
+  border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:800;color:var(--white);
+  letter-spacing:-.5px;
+}
+.brand-name{font-size:17px;font-weight:800;letter-spacing:-.4px;color:var(--gray-900);}
+.brand-tag{
+  font-size:10px;font-family:var(--mono);
+  background:var(--blue-bg);color:var(--blue);
+  padding:2px 8px;border-radius:20px;
+  border:1px solid var(--blue-line);
+  margin-left:2px;letter-spacing:.5px;
+}
+
+.topbar-nav{display:flex;align-items:center;gap:4px;}
+.tnav-btn{
+  padding:7px 16px;border:none;background:none;
+  font-family:var(--ff);font-size:14px;font-weight:500;
+  color:var(--gray-500);cursor:pointer;border-radius:8px;
+  transition:all .15s;
+}
+.tnav-btn:hover{color:var(--gray-900);background:var(--gray-100);}
+.tnav-btn.active{color:var(--blue);background:var(--blue-bg);}
+
+.topbar-right{display:flex;align-items:center;gap:10px;}
+
+/* CTA / wallet buttons */
+.btn-primary{
+  padding:9px 20px;
+  background:var(--blue);
+  border:2px solid var(--blue);
+  border-radius:10px;
+  color:var(--white);
+  font-family:var(--ff);font-size:14px;font-weight:700;
+  cursor:pointer;transition:all .2s;white-space:nowrap;
+}
+.btn-primary:hover:not(:disabled){background:var(--blue-dark);border-color:var(--blue-dark);box-shadow:var(--shadow-blue);}
+.btn-secondary{
+  padding:9px 20px;
+  background:var(--white);
+  border:2px solid var(--gray-200);
+  border-radius:10px;
+  color:var(--gray-700);
+  font-family:var(--ff);font-size:14px;font-weight:600;
+  cursor:pointer;transition:all .2s;white-space:nowrap;
+}
+.btn-secondary:hover{border-color:var(--blue);color:var(--blue);}
+.btn-outline{
+  padding:8px 16px;
+  background:transparent;
+  border:1.5px solid var(--gray-300);
+  border-radius:8px;color:var(--gray-600);
+  font-family:var(--ff);font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .15s;
+}
+.btn-outline:hover:not(:disabled){border-color:var(--blue);color:var(--blue);}
+.btn-ghost{
+  padding:8px 16px;
+  background:var(--blue-bg);border:1.5px solid var(--blue-line);
+  border-radius:8px;color:var(--blue);
+  font-family:var(--ff);font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .15s;
+}
+.btn-ghost:hover:not(:disabled){background:var(--blue-bg2);}
+button:disabled{opacity:.4;cursor:not-allowed;}
+
+/* Wallet pill in nav */
+.wallet-pill{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 16px;
+  border:1.5px solid var(--gray-200);border-radius:20px;
+  background:var(--white);color:var(--gray-600);
+  font-family:var(--mono);font-size:12px;
+  cursor:pointer;transition:all .2s;
+}
+.wallet-pill:hover{border-color:var(--blue);color:var(--blue);}
+.wallet-pill.connected{border-color:var(--blue);color:var(--blue);background:var(--blue-bg);}
+.wallet-dot{width:7px;height:7px;border-radius:50%;background:var(--gray-300);}
+.wallet-dot.on{background:var(--green);animation:wdot 2s infinite;}
+@keyframes wdot{0%,100%{opacity:1}50%{opacity:.4}}
+
+.net-pill-sm{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 12px;border-radius:20px;
+  font-family:var(--mono);font-size:11px;
+  border:1px solid var(--gray-200);background:var(--gray-50);color:var(--gray-500);
+}
+.net-pill-sm.mainnet{border-color:var(--blue-line);background:var(--blue-bg);color:var(--blue);}
+.net-pill-sm.testnet{border-color:#ddd6fe;background:#f5f3ff;color:var(--purple);}
+.npulse{width:6px;height:6px;border-radius:50%;background:var(--gray-400);}
+.npulse.main{background:var(--blue);animation:wdot 2s infinite;}
+.npulse.test{background:var(--purple);animation:wdot 2s infinite;}
+
+/* ═══════════════════════════════════════════
+   LANDING PAGE
+═══════════════════════════════════════════ */
+#landing{display:block;}
+#dapp{display:none;}
+
+/* HERO */
+.hero{
+  padding:140px 32px 100px;
+  max-width:1160px;margin:0 auto;
+  display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;
+}
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  background:var(--blue-bg);border:1px solid var(--blue-line);
+  border-radius:20px;padding:5px 14px;
+  font-size:12px;font-weight:600;color:var(--blue);
+  letter-spacing:.3px;margin-bottom:20px;
+}
+.hero-eyebrow-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);animation:wdot 2s infinite;}
+.hero-h1{
+  font-size:52px;font-weight:800;letter-spacing:-2px;
+  line-height:1.05;color:var(--gray-900);margin-bottom:20px;
+}
+.hero-h1 span{color:var(--blue);}
+.hero-desc{font-size:17px;color:var(--gray-500);line-height:1.7;margin-bottom:36px;max-width:480px;}
+.hero-ctas{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+.hero-cta-main{
+  padding:14px 28px;background:var(--blue);border:2px solid var(--blue);
+  border-radius:12px;color:var(--white);font-family:var(--ff);
+  font-size:15px;font-weight:800;cursor:pointer;
+  transition:all .2s;letter-spacing:-.2px;
+}
+.hero-cta-main:hover{background:var(--blue-dark);border-color:var(--blue-dark);box-shadow:var(--shadow-blue);}
+.hero-cta-sec{
+  padding:14px 28px;background:var(--white);border:2px solid var(--gray-200);
+  border-radius:12px;color:var(--gray-700);font-family:var(--ff);
+  font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;
+}
+.hero-cta-sec:hover{border-color:var(--blue);color:var(--blue);}
+.hero-note{font-size:13px;color:var(--gray-400);margin-top:16px;}
+
+/* Hero visual */
+.hero-visual{
+  background:linear-gradient(135deg,var(--blue-deep) 0%,var(--blue) 100%);
+  border-radius:24px;padding:32px;
+  box-shadow:var(--shadow-lg), 0 0 0 1px rgba(255,255,255,.1) inset;
+  position:relative;overflow:hidden;
+}
+.hero-visual::before{
+  content:'';position:absolute;top:-40px;right:-40px;
+  width:200px;height:200px;
+  background:radial-gradient(circle,rgba(255,255,255,.08),transparent 70%);
+}
+.hv-label{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:6px;}
+.hv-val{font-size:28px;font-weight:800;color:var(--white);letter-spacing:-1px;margin-bottom:4px;}
+.hv-sub{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.6);}
+.hv-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+.hv-card{background:rgba(255,255,255,.1);border-radius:12px;padding:16px;}
+.hv-divider{height:1px;background:rgba(255,255,255,.1);margin:16px 0;}
+.hv-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;}
+.hv-row:not(:last-child){border-bottom:1px solid rgba(255,255,255,.07);}
+.hv-row-label{font-size:12px;color:rgba(255,255,255,.6);}
+.hv-row-val{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--white);}
+.hv-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  background:rgba(255,255,255,.15);border-radius:20px;
+  padding:3px 10px;font-size:11px;color:rgba(255,255,255,.9);
+  font-family:var(--mono);
+}
+
+/* STATS BAR */
+.stats-bar{
+  background:var(--gray-900);padding:48px 32px;
+  margin-top:0;
+}
+.stats-inner{max-width:1160px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:40px;}
+.stat-item{text-align:center;}
+.stat-num{font-size:36px;font-weight:800;color:var(--white);letter-spacing:-1px;margin-bottom:6px;}
+.stat-num span{color:var(--blue-lt);}
+.stat-label{font-size:13px;color:var(--gray-400);letter-spacing:.3px;}
+
+/* HOW IT WORKS */
+.section{padding:96px 32px;max-width:1160px;margin:0 auto;}
+.section-eyebrow{
+  font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--blue);margin-bottom:12px;
+}
+.section-h2{font-size:40px;font-weight:800;letter-spacing:-1.5px;color:var(--gray-900);margin-bottom:16px;}
+.section-desc{font-size:16px;color:var(--gray-500);max-width:560px;line-height:1.7;}
+
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:56px;}
+.step{background:var(--white);border:1px solid var(--gray-200);border-radius:20px;padding:28px;transition:all .2s;}
+.step:hover{border-color:var(--blue-line);box-shadow:var(--shadow-blue);transform:translateY(-3px);}
+.step-num{
+  width:44px;height:44px;border-radius:12px;
+  background:var(--blue-bg);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;font-weight:800;color:var(--blue);
+  margin-bottom:16px;
+}
+.step-h{font-size:18px;font-weight:700;color:var(--gray-900);margin-bottom:8px;}
+.step-desc{font-size:14px;color:var(--gray-500);line-height:1.7;}
+
+/* SLOTS TABLE */
+.slots-section{background:var(--gray-50);padding:80px 32px;}
+.slots-inner{max-width:1160px;margin:0 auto;}
+.slots-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:48px;}
+.slot-item{
+  background:var(--white);border:1.5px solid var(--gray-200);
+  border-radius:14px;padding:20px 16px;text-align:center;
+  transition:all .2s;cursor:default;
+}
+.slot-item:hover{border-color:var(--blue);box-shadow:0 4px 20px rgba(26,86,219,.12);transform:translateY(-2px);}
+.slot-item.featured{border-color:var(--blue);background:var(--blue-bg);}
+.slot-amount{font-size:22px;font-weight:800;color:var(--gray-900);letter-spacing:-.5px;margin-bottom:4px;}
+.slot-item.featured .slot-amount{color:var(--blue);}
+.slot-roi{font-size:12px;color:var(--gray-500);margin-bottom:10px;}
+.slot-cap{
+  font-family:var(--mono);font-size:11px;
+  background:var(--gray-100);color:var(--gray-600);
+  padding:3px 10px;border-radius:20px;display:inline-block;
+}
+.slot-item.featured .slot-cap{background:var(--blue-bg2);color:var(--blue);}
+
+/* DISTRIBUTION */
+.dist-section{padding:80px 32px;max-width:1160px;margin:0 auto;}
+.dist-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;}
+.dist-visual{display:flex;flex-direction:column;gap:10px;}
+.dist-bar-item{display:flex;align-items:center;gap:12px;}
+.dist-bar-fill{height:8px;border-radius:4px;background:var(--blue);transition:width .8s;}
+.dist-bar-label{font-size:13px;font-weight:600;color:var(--gray-700);white-space:nowrap;min-width:140px;}
+.dist-bar-pct{font-family:var(--mono);font-size:12px;color:var(--blue);font-weight:600;min-width:36px;}
+
+/* RANKS */
+.ranks-section{background:var(--blue-deep);padding:80px 32px;}
+.ranks-inner{max-width:1160px;margin:0 auto;}
+.ranks-section .section-eyebrow{color:var(--blue-lt);}
+.ranks-section .section-h2{color:var(--white);}
+.ranks-section .section-desc{color:rgba(255,255,255,.6);}
+.ranks-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:48px;}
+.rank-card-lp{
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:16px;padding:24px;
+  transition:all .2s;
+}
+.rank-card-lp:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);}
+.rank-num{font-size:36px;font-weight:800;color:rgba(255,255,255,.15);line-height:1;margin-bottom:12px;letter-spacing:-2px;}
+.rank-name{font-size:16px;font-weight:700;color:var(--white);margin-bottom:6px;}
+.rank-pts{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.5);margin-bottom:14px;}
+.rank-bonus{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.1);border-radius:8px;
+  padding:6px 12px;font-size:13px;font-weight:700;color:var(--white);
+}
+
+/* WALLETS */
+.wallets-section{padding:80px 32px;max-width:1160px;margin:0 auto;}
+.wallets-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:48px;}
+.wallet-card{
+  border:1.5px solid var(--gray-200);border-radius:20px;
+  padding:28px 24px;text-align:center;
+  transition:all .2s;cursor:pointer;
+  position:relative;overflow:hidden;
+}
+.wallet-card:hover{border-color:var(--blue);box-shadow:var(--shadow-blue);transform:translateY(-3px);}
+.wallet-card.featured::before{content:'Popular';position:absolute;top:12px;right:12px;background:var(--blue);color:var(--white);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.5px;}
+.wallet-icon{font-size:44px;margin-bottom:14px;}
+.wallet-name{font-size:18px;font-weight:800;color:var(--gray-900);margin-bottom:6px;}
+.wallet-desc{font-size:13px;color:var(--gray-500);line-height:1.6;}
+.wallet-cta{
+  margin-top:16px;padding:8px 20px;
+  background:var(--blue-bg);border:1.5px solid var(--blue-line);
+  border-radius:8px;color:var(--blue);
+  font-family:var(--ff);font-size:13px;font-weight:700;
+  cursor:pointer;transition:all .15s;display:inline-block;
+}
+.wallet-cta:hover{background:var(--blue-bg2);}
+
+/* CTA SECTION */
+.cta-section{
+  background:linear-gradient(135deg,var(--blue-deep) 0%,var(--blue-mid) 100%);
+  padding:100px 32px;text-align:center;
+}
+.cta-section h2{font-size:44px;font-weight:800;letter-spacing:-1.5px;color:var(--white);margin-bottom:16px;}
+.cta-section p{font-size:18px;color:rgba(255,255,255,.7);margin-bottom:36px;max-width:500px;margin-left:auto;margin-right:auto;}
+.cta-section .hero-cta-main{display:inline-block;background:var(--white);color:var(--blue-deep);border-color:var(--white);}
+.cta-section .hero-cta-main:hover{background:var(--blue-bg);box-shadow:none;}
+
+/* FOOTER */
+footer{
+  background:var(--gray-900);padding:40px 32px;
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:16px;
+}
+footer .brand-name{color:var(--white);}
+footer .brand-mark{background:var(--blue);}
+.footer-links{display:flex;gap:24px;}
+.footer-link{font-size:13px;color:var(--gray-400);text-decoration:none;cursor:pointer;transition:color .15s;}
+.footer-link:hover{color:var(--white);}
+.footer-copy{font-size:13px;color:var(--gray-500);}
+
+/* ═══════════════════════════════════════════
+   DAPP
+═══════════════════════════════════════════ */
+.dapp-wrap{padding-top:64px;min-height:100vh;background:var(--gray-50);}
+
+/* DApp nav tabs (below topbar) */
+.dapp-tabs{
+  background:var(--white);border-bottom:1px solid var(--gray-200);
+  display:flex;align-items:center;gap:2px;padding:0 32px;
+  position:sticky;top:64px;z-index:100;
+}
+.dtab{
+  padding:14px 18px;border:none;background:none;
+  font-family:var(--ff);font-size:14px;font-weight:500;
+  color:var(--gray-500);cursor:pointer;border-bottom:2px solid transparent;
+  transition:all .15s;white-space:nowrap;margin-bottom:-1px;
+}
+.dtab:hover{color:var(--gray-800);}
+.dtab.on{color:var(--blue);border-bottom-color:var(--blue);font-weight:700;}
+
+/* DApp main */
+.dmain{max-width:1280px;margin:0 auto;padding:28px 32px 60px;}
+
+/* Search bar */
+.search-wrap{position:relative;max-width:560px;margin-bottom:24px;}
+.sinp{
+  width:100%;background:var(--white);border:1.5px solid var(--gray-200);
+  border-radius:50px;padding:12px 120px 12px 44px;
+  font-family:var(--mono);font-size:13px;color:var(--gray-800);
+  outline:none;transition:border-color .2s,box-shadow .2s;
+}
+.sinp::placeholder{color:var(--gray-400);font-family:var(--ff);}
+.sinp:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,.08);}
+.sico{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--gray-400);font-size:16px;}
+.sbtn{
+  position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  padding:8px 20px;background:var(--blue);border:none;border-radius:50px;
+  color:var(--white);font-family:var(--ff);font-size:13px;font-weight:700;
+  cursor:pointer;transition:all .2s;
+}
+.sbtn:hover{background:var(--blue-dark);box-shadow:var(--shadow-blue);}
+
+/* Tab panes */
+.tpane{display:none;animation:fadeIn .25s ease both;}
+.tpane.on{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Grids */
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:20px;}
+
+/* KPI card */
+.kpi{
+  background:var(--white);border:1px solid var(--gray-200);
+  border-radius:16px;padding:20px 22px;
+  box-shadow:var(--shadow-sm);transition:all .2s;
+}
+.kpi:hover{border-color:var(--blue-line);box-shadow:var(--shadow);}
+.kpi-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--gray-400);margin-bottom:10px;}
+.kpi-value{font-size:24px;font-weight:800;letter-spacing:-1px;color:var(--gray-900);line-height:1;margin-bottom:5px;}
+.kpi-value.blue{color:var(--blue);}
+.kpi-value.green{color:var(--green);}
+.kpi-value.amber{color:var(--amber);}
+.kpi-value.purple{color:var(--purple);}
+.kpi-sub{font-size:12px;color:var(--gray-400);}
+
+/* Panel */
+.panel{
+  background:var(--white);border:1px solid var(--gray-200);
+  border-radius:16px;overflow:hidden;margin-bottom:16px;
+  box-shadow:var(--shadow-sm);
+}
+.panel-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;border-bottom:1px solid var(--gray-100);
+  background:var(--gray-50);
+}
+.panel-title{font-size:14px;font-weight:700;color:var(--gray-800);}
+.panel-body{padding:20px;}
+
+/* User card */
+.user-card{
+  background:var(--white);border:1px solid var(--gray-200);
+  border-radius:16px;padding:20px 24px;
+  display:flex;align-items:center;gap:18px;
+  margin-bottom:20px;box-shadow:var(--shadow-sm);
+  position:relative;overflow:hidden;
+}
+.user-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--blue),var(--blue-lt));}
+.uavatar{
+  width:50px;height:50px;border-radius:14px;
+  background:var(--blue);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:800;color:var(--white);flex-shrink:0;
+}
+.uinfo{flex:1;min-width:0;}
+.uaddr{font-family:var(--mono);font-size:13px;color:var(--blue);margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.utags{display:flex;flex-wrap:wrap;gap:5px;}
+.uright{text-align:right;flex-shrink:0;}
+.uright-label{font-size:11px;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;}
+.uright-val{font-size:15px;font-weight:700;color:var(--gray-900);}
+.uright-sub{font-size:11px;color:var(--gray-400);font-family:var(--mono);margin-top:2px;}
+
+/* Badge */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid transparent;}
+.badge-blue  {background:var(--blue-bg);  border-color:var(--blue-line);  color:var(--blue);}
+.badge-green {background:var(--green-bg); border-color:#a7f3d0;           color:var(--green);}
+.badge-red   {background:var(--red-bg);   border-color:#fecaca;           color:var(--red);}
+.badge-amber {background:var(--amber-bg); border-color:#fde68a;           color:var(--amber);}
+.badge-purple{background:var(--purple-bg);border-color:#ddd6fe;           color:var(--purple);}
+.badge-gray  {background:var(--gray-100); border-color:var(--gray-200);   color:var(--gray-600);}
+
+/* Section heading */
+.sec{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.sec-bar{width:3px;height:16px;background:var(--blue);border-radius:2px;flex-shrink:0;}
+.sec-label{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--gray-400);}
+.sec-line{flex:1;height:1px;background:var(--gray-200);}
+
+/* Progress */
+.prog{height:6px;background:var(--gray-100);border-radius:3px;overflow:hidden;margin-top:6px;}
+.prog-fill{height:100%;background:var(--blue);border-radius:3px;transition:width .8s ease;}
+
+/* Slot card */
+.slot-pos{
+  background:var(--white);border:1.5px solid var(--gray-200);
+  border-radius:14px;overflow:hidden;margin-bottom:12px;
+  box-shadow:var(--shadow-sm);transition:border-color .2s;
+}
+.slot-pos.active{border-color:var(--blue);}
+.slot-pos.done{border-color:var(--gray-300);opacity:.8;}
+.slot-pos-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;background:var(--gray-50);border-bottom:1px solid var(--gray-100);
+}
+.slot-pos-title{font-size:13px;font-weight:700;color:var(--gray-800);display:flex;align-items:center;gap:8px;}
+.slot-pos-body{padding:14px 16px;}
+.slot-stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:12px;}
+.slot-stat-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);margin-bottom:3px;}
+.slot-stat-val{font-size:14px;font-weight:800;color:var(--gray-900);font-family:var(--mono);letter-spacing:-.3px;}
+.streak-row{display:flex;gap:20px;font-size:12px;color:var(--gray-500);margin-bottom:10px;flex-wrap:wrap;}
+.streak-val{font-weight:700;color:var(--amber);}
+
+/* Amount chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
+.chip{
+  padding:7px 16px;border-radius:20px;
+  border:1.5px solid var(--gray-200);background:var(--white);
+  color:var(--gray-600);font-family:var(--mono);font-size:13px;font-weight:500;
+  cursor:pointer;transition:all .15s;
+}
+.chip:hover{border-color:var(--blue);color:var(--blue);}
+.chip.sel{background:var(--blue-bg);border-color:var(--blue);color:var(--blue);}
+
+/* Rank card in dapp */
+.rk-card{
+  border:1.5px solid var(--gray-200);border-radius:14px;
+  padding:18px;margin-bottom:10px;background:var(--white);
+  transition:border-color .2s;
+}
+.rk-card.achieved{border-color:var(--blue-line);background:var(--blue-bg);}
+.rk-card.next{border-color:var(--amber);background:var(--amber-bg);}
+
+/* Table */
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--gray-400);padding:8px 12px;text-align:left;border-bottom:1px solid var(--gray-200);}
+.tbl td{padding:12px;font-size:13px;border-bottom:1px solid var(--gray-100);color:var(--gray-700);font-family:var(--mono);}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tbody tr:hover td{background:var(--gray-50);}
+
+/* Mem rows */
+.mem-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);font-size:13px;}
+.mem-row:last-child{border-bottom:none;}
+.mem-label{color:var(--gray-500);font-size:12px;}
+.mem-val{font-weight:700;color:var(--gray-800);font-family:var(--mono);font-size:12px;}
+
+/* Distribution box */
+.dist-dapp{background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:14px;margin-bottom:16px;}
+.dist-dapp-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--gray-400);margin-bottom:10px;}
+.dist-dapp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.dist-dapp-item{font-size:12px;color:var(--gray-600);display:flex;align-items:center;gap:6px;}
+.dist-dapp-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);flex-shrink:0;}
+
+/* Sub tabs */
+.sub-tabs{display:flex;gap:2px;background:var(--gray-100);border-radius:10px;padding:3px;width:fit-content;margin-bottom:18px;}
+.stab{padding:7px 18px;border:none;border-radius:8px;background:none;font-family:var(--ff);font-size:13px;font-weight:500;color:var(--gray-500);cursor:pointer;transition:all .15s;}
+.stab.on{background:var(--white);color:var(--blue);font-weight:700;box-shadow:var(--shadow-sm);}
+
+/* Alerts */
+.alert{display:flex;gap:10px;padding:12px 14px;border-radius:10px;font-size:13px;line-height:1.6;margin-bottom:14px;}
+.alert-info{background:var(--blue-bg);border:1px solid var(--blue-line);color:#1e40af;}
+.alert-warn{background:var(--amber-bg);border:1px solid #fde68a;color:#92400e;}
+
+/* Wallet selection modal */
+.wallet-modal-bg{position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:24px;}
+.wallet-modal{background:var(--white);border-radius:20px;padding:32px;max-width:440px;width:100%;box-shadow:var(--shadow-lg);}
+.wallet-modal-title{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:6px;}
+.wallet-modal-sub{font-size:14px;color:var(--gray-500);margin-bottom:24px;}
+.wallet-options{display:flex;flex-direction:column;gap:10px;}
+.wallet-option{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 16px;
+  border:1.5px solid var(--gray-200);border-radius:12px;
+  cursor:pointer;transition:all .2s;background:var(--white);
+  font-family:var(--ff);text-align:left;width:100%;
+}
+.wallet-option:hover{border-color:var(--blue);background:var(--blue-bg);}
+.wallet-option-icon{font-size:28px;flex-shrink:0;}
+.wallet-option-name{font-size:15px;font-weight:700;color:var(--gray-900);margin-bottom:2px;}
+.wallet-option-sub{font-size:12px;color:var(--gray-400);}
+.wallet-option-badge{margin-left:auto;font-size:10px;background:var(--blue-bg);color:var(--blue);padding:2px 8px;border-radius:20px;font-weight:700;letter-spacing:.3px;}
+
+/* Help modal */
+.help-modal{background:var(--white);border-radius:20px;padding:32px;max-width:480px;width:100%;box-shadow:var(--shadow-lg);}
+.cmd-block{background:var(--gray-900);border-radius:8px;padding:12px 14px;font-family:var(--mono);font-size:13px;color:#86efac;cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
+
+/* Empty state */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:52px 24px;text-align:center;}
+.empty-icon{font-size:36px;margin-bottom:10px;opacity:.3;}
+.empty-title{font-size:15px;font-weight:700;color:var(--gray-600);margin-bottom:5px;}
+.empty-desc{font-size:13px;color:var(--gray-400);max-width:260px;line-height:1.6;}
+
+/* Skel */
+.skel{background:linear-gradient(90deg,var(--gray-100) 25%,var(--gray-200) 50%,var(--gray-100) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px;}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* Spinner */
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--gray-200);border-top-color:var(--blue);border-radius:50%;animation:rotate .7s linear infinite;vertical-align:middle;}
+@keyframes rotate{to{transform:rotate(360deg)}}
+
+/* Copy btn */
+.copy-btn{background:none;border:none;color:var(--gray-300);cursor:pointer;font-size:12px;padding:2px 4px;border-radius:4px;transition:color .15s;}
+.copy-btn:hover{color:var(--blue);}
+
+/* Toasts */
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:6px;}
+.toast{background:var(--white);border:1px solid var(--gray-200);border-radius:12px;padding:12px 16px;font-size:13px;max-width:340px;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;animation:slideUp .25s ease;}
+.toast-bar{width:3px;height:34px;border-radius:2px;flex-shrink:0;}
+.toast-bar-info{background:var(--blue);}
+.toast-bar-success{background:var(--green);}
+.toast-bar-error{background:var(--red);}
+@keyframes slideUp{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* File warning */
+#file-warn{position:fixed;bottom:0;left:0;right:0;z-index:500;background:var(--white);border-top:1px solid var(--amber-bg);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;box-shadow:0 -2px 8px rgba(0,0,0,.06);}
+
+/* Responsive */
+@media(max-width:1024px){
+  .hero{grid-template-columns:1fr;gap:40px;padding:120px 24px 60px;}
+  .hero-visual{display:none;}
+  .stats-inner{grid-template-columns:repeat(2,1fr);gap:24px;}
+  .steps{grid-template-columns:1fr;}
+  .slots-grid{grid-template-columns:repeat(2,1fr);}
+  .dist-grid{grid-template-columns:1fr;}
+  .ranks-cards{grid-template-columns:repeat(2,1fr);}
+  .wallets-grid{grid-template-columns:1fr;}
+  .g4,.g3{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:640px){
+  .topbar{padding:0 16px;}
+  .topbar-nav{display:none;}
+  .hero-h1{font-size:36px;}
+  .section-h2{font-size:28px;}
+  .stats-inner{grid-template-columns:1fr 1fr;}
+  .slots-grid{grid-template-columns:1fr 1fr;}
+  .g4,.g3,.g2{grid-template-columns:1fr;}
+  .dmain{padding:16px;}
+  .dapp-tabs{padding:0 12px;overflow-x:auto;}
+  .slot-stats-grid{grid-template-columns:repeat(2,1fr);}
+}
+
+/* ── LEARN TAB ── */
+.learn-slot-card {
+  background:var(--white);border:1.5px solid var(--gray-200);
+  border-radius:14px;padding:16px 18px;margin-bottom:10px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:16px;flex-wrap:wrap;transition:border-color .2s;
+}
+.learn-slot-card.unlocked { border-color:var(--blue); }
+.learn-slot-card.locked   { opacity:.7; }
+.learn-slot-info { display:flex;flex-direction:column;gap:3px; }
+.learn-slot-name { font-size:14px;font-weight:700;color:var(--gray-900); }
+.learn-slot-sub  { font-size:12px;color:var(--gray-400);font-family:var(--mono); }
+
+.btn-sync-locked {
+  display:flex;align-items:center;gap:6px;
+  padding:9px 16px;background:var(--gray-100);border:1.5px solid var(--gray-200);
+  border-radius:10px;color:var(--gray-400);font-family:var(--ff);
+  font-size:13px;font-weight:600;cursor:not-allowed;min-width:150px;
+}
+.btn-sync-ready {
+  display:flex;align-items:center;gap:6px;
+  padding:9px 20px;background:var(--blue);border:2px solid var(--blue);
+  border-radius:10px;color:var(--white);font-family:var(--ff);
+  font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;
+}
+.btn-sync-ready:hover { background:var(--blue-dark);box-shadow:var(--shadow-blue); }
+.btn-sync-done {
+  display:flex;align-items:center;gap:6px;
+  padding:9px 16px;background:var(--green-bg);border:1.5px solid #a7f3d0;
+  border-radius:10px;color:var(--green);font-family:var(--ff);
+  font-size:13px;font-weight:700;cursor:default;
+}
+.history-row {
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 0;border-bottom:1px solid var(--gray-100);gap:12px;
+}
+.history-row:last-child { border-bottom:none; }
+
+/* ══════════════════════════════════════════
+   MOBILE SIDEBAR NAV
+══════════════════════════════════════════ */
+.mob-menu-btn {
+  display: none;
+  width: 38px; height: 38px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 10px;
+  background: var(--white);
+  cursor: pointer;
+  align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  transition: all .2s;
+}
+.mob-menu-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+/* Sidebar overlay */
+.sidebar-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 800;
+  background: rgba(0,0,0,.45);
+  backdrop-filter: blur(3px);
+}
+.sidebar-overlay.open { display: block; }
+
+/* Sidebar panel */
+.sidebar {
+  position: fixed; top: 0; left: -280px; bottom: 0;
+  width: 280px; z-index: 900;
+  background: var(--white);
+  border-right: 1px solid var(--gray-200);
+  box-shadow: 4px 0 24px rgba(0,0,0,.12);
+  transition: left .28s cubic-bezier(.4,0,.2,1);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.sidebar.open { left: 0; }
+
+.sidebar-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid var(--gray-100);
+  flex-shrink: 0;
+}
+.sidebar-brand { display: flex; align-items: center; gap: 9px; }
+.sidebar-brand .brand-mark { width: 30px; height: 30px; font-size: 11px; }
+.sidebar-brand .brand-name { font-size: 15px; }
+.sidebar-close {
+  width: 32px; height: 32px; border: 1px solid var(--gray-200);
+  border-radius: 8px; background: var(--gray-50);
+  cursor: pointer; display: flex; align-items: center;
+  justify-content: center; font-size: 16px; color: var(--gray-500);
+}
+.sidebar-close:hover { border-color: var(--red); color: var(--red); }
+
+/* Sidebar wallet info */
+.sidebar-wallet {
+  margin: 12px 14px;
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  flex-shrink: 0;
+}
+.sidebar-wallet-label { font-size: 10px; font-family: var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--blue); margin-bottom: 4px; }
+.sidebar-wallet-addr { font-size: 12px; font-family: var(--mono); color: var(--gray-700); word-break: break-all; }
+
+/* Sidebar net pill */
+.sidebar-net {
+  margin: 0 14px 12px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: var(--gray-50); border: 1px solid var(--gray-200);
+  border-radius: 10px; font-size: 12px; font-family: var(--mono);
+  color: var(--gray-600); flex-shrink: 0;
+}
+
+/* Sidebar nav items */
+.sidebar-nav { flex: 1; overflow-y: auto; padding: 6px 10px; }
+.sidebar-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all .15s;
+  font-size: 15px; font-weight: 500;
+  color: var(--gray-600);
+  margin-bottom: 2px;
+  border: none; background: none; width: 100%; text-align: left;
+  font-family: var(--ff);
+}
+.sidebar-item:hover { background: var(--gray-50); color: var(--gray-900); }
+.sidebar-item.on { background: var(--blue-bg); color: var(--blue); font-weight: 700; }
+.sidebar-item.on .si-icon { background: var(--blue); color: var(--white); }
+.si-icon {
+  width: 34px; height: 34px; border-radius: 9px;
+  background: var(--gray-100); color: var(--gray-500);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0; transition: all .15s;
+}
+.si-label { flex: 1; }
+.si-badge {
+  font-size: 10px; background: var(--blue); color: var(--white);
+  padding: 2px 7px; border-radius: 20px; font-weight: 700;
+}
+
+/* Sidebar divider */
+.sidebar-divider { height: 1px; background: var(--gray-100); margin: 8px 14px; }
+
+/* Sidebar footer actions */
+.sidebar-footer { padding: 12px 14px; border-top: 1px solid var(--gray-100); flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+.sidebar-connect-btn {
+  width: 100%; padding: 12px;
+  background: var(--blue); border: none; border-radius: 12px;
+  color: var(--white); font-family: var(--ff); font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all .2s;
+}
+.sidebar-connect-btn:hover { background: var(--blue-dark); }
+.sidebar-landing-btn {
+  width: 100%; padding: 10px;
+  background: var(--gray-50); border: 1.5px solid var(--gray-200); border-radius: 12px;
+  color: var(--gray-600); font-family: var(--ff); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all .2s; text-align: center;
+}
+.sidebar-landing-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+/* Show mobile button on small screens */
+@media(max-width:768px) {
+  .mob-menu-btn { display: flex; }
+  .dapp-tabs-nav { display: none !important; } /* always hide horizontal tabs on mobile */
+  .topbar-nav { display: none; }
+  .topbar { padding: 0 14px; }
+  .wallet-pill span { display: none; } /* hide text, keep dot */
+  .wallet-pill { padding: 8px 10px; }
+  .dmain { padding: 14px 12px 60px; }
+  .g4 { grid-template-columns: repeat(2,1fr); }
+  .g3 { grid-template-columns: repeat(2,1fr); }
+  .g2 { grid-template-columns: 1fr; }
+  .learn-slot-card { flex-direction: column; align-items: flex-start; }
+  .btn-sync-ready, .btn-sync-locked, .btn-sync-done { width: 100%; justify-content: center; }
+  .slot-stats-grid { grid-template-columns: repeat(2,1fr); }
+  .hero { padding: 100px 16px 60px; }
+  .hero-h1 { font-size: 32px; }
+  .section { padding: 52px 16px; }
+  .section-h2 { font-size: 26px; }
+  .slots-grid { grid-template-columns: repeat(2,1fr); }
+  .ranks-cards { grid-template-columns: repeat(2,1fr); }
+  .wallets-grid { grid-template-columns: 1fr; }
+  .stats-inner { grid-template-columns: repeat(2,1fr); gap: 16px; padding: 32px 16px; }
+  .steps { grid-template-columns: 1fr; }
+}
+
+@media(max-width:400px) {
+  .g4, .g3 { grid-template-columns: 1fr; }
+  .slots-grid { grid-template-columns: 1fr 1fr; }
+  .ranks-cards { grid-template-columns: 1fr; }
+}
+
+/* ── EDUCATION SECTION ── */
+.edu-section{background:var(--gray-50);border-top:1px solid var(--gray-100);}
+.edu-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:48px;}
+.edu-card{background:var(--white);border:1px solid var(--gray-100);border-radius:14px;padding:28px 24px;transition:.2s;}
+.edu-card:hover{border-color:var(--blue);box-shadow:0 4px 20px rgba(26,86,219,.08);transform:translateY(-2px);}
+.edu-card-icon{font-size:28px;margin-bottom:12px;}
+.edu-card-h{font-size:16px;font-weight:700;color:var(--gray-900);margin-bottom:8px;}
+.edu-card-desc{font-size:14px;color:var(--gray-500);line-height:1.65;}
+@media(max-width:900px){.edu-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:540px){.edu-grid{grid-template-columns:1fr;}}
+
+/* ── AREAS SECTION ── */
+.areas-section{border-top:1px solid var(--gray-100);}
+.areas-grid{display:flex;flex-wrap:wrap;gap:12px;margin-top:36px;}
+.area-pill{background:var(--blue-bg);border:1.5px solid var(--blue);color:var(--blue);
+  padding:10px 20px;border-radius:999px;font-size:14px;font-weight:600;
+  transition:.2s;cursor:default;}
+.area-pill:hover{background:var(--blue);color:var(--white);}
+
+/* ── COMMUNITY SECTION ── */
+.community-section{border-top:1px solid var(--gray-100);}
+.community-links{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;}
+.comm-link{display:flex;align-items:center;gap:10px;padding:14px 28px;
+  border:1.5px solid var(--gray-200);border-radius:12px;font-weight:600;
+  color:var(--gray-700);text-decoration:none;font-size:15px;transition:.2s;background:var(--white);}
+.comm-link:hover{border-color:var(--blue);color:var(--blue);box-shadow:0 4px 16px rgba(26,86,219,.1);}
+
+/* ── FOOTER ── */
+.lp-footer{background:var(--gray-900);padding:48px 32px;}
+.lp-footer-inner{max-width:1160px;margin:0 auto;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:32px;}
+.lp-footer-brand{font-size:24px;font-weight:800;color:var(--white);letter-spacing:-1px;}
+.lp-footer-tagline{font-size:13px;color:var(--gray-400);margin-top:4px;}
+.lp-footer-links{display:flex;flex-direction:column;gap:8px;}
+.lp-footer-links a{color:var(--gray-400);text-decoration:none;font-size:14px;transition:.2s;}
+.lp-footer-links a:hover{color:var(--white);}
+
+/* ── HERO STATS ── */
+#hero-users,#hero-principal{font-family:var(--mono);font-size:13px;}
+
+
+/* ── BUY CARD (LANDING) ── */
+.buy-card{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:20px;padding:32px;max-width:520px;margin:0 auto;text-align:left;}
+.buy-card-head{font-size:20px;font-weight:800;color:var(--white);margin-bottom:6px;}
+.buy-card-sub{font-size:14px;color:rgba(255,255,255,.5);margin-bottom:24px;}
+.buy-field{margin-bottom:18px;}
+.buy-label{display:block;font-size:12px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+.buy-input{width:100%;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:10px;padding:12px 16px;font-size:14px;color:var(--white);font-family:var(--mono);box-sizing:border-box;transition:.2s;}
+.buy-input:focus{outline:none;border-color:var(--blue);background:rgba(255,255,255,.12);}
+.buy-input::placeholder{color:rgba(255,255,255,.3);}
+.lp-slots-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.lp-slot-btn{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;transition:.2s;color:var(--white);}
+.lp-slot-btn:hover{border-color:var(--blue);background:rgba(59,130,246,.15);}
+.lp-slot-btn.sel{border-color:var(--blue);background:rgba(59,130,246,.2);box-shadow:0 0 0 3px rgba(59,130,246,.2);}
+.lp-slot-btn .lp-sa{font-size:13px;font-weight:800;}
+.lp-slot-btn .lp-sc{font-size:9px;color:rgba(255,255,255,.4);margin-top:2px;}
+/* Gate (light bg) slot buttons */
+.gate-slot-btn{background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;transition:.2s;color:var(--gray-900);}
+.gate-slot-btn:hover{border-color:var(--blue);background:var(--blue-bg);}
+.gate-slot-btn.sel{border-color:var(--blue);background:var(--blue-bg);box-shadow:0 0 0 3px rgba(59,130,246,.15);}
+.gate-slot-btn .lp-sa{font-size:13px;font-weight:800;color:var(--blue);}
+.gate-slot-btn .lp-sc{font-size:9px;color:var(--gray-400);margin-top:2px;}
+.buy-summary{background:rgba(0,0,0,.2);border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid rgba(255,255,255,.08);}
+.buy-summary-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px;color:rgba(255,255,255,.7);}
+.buy-summary-row:last-child{border:none;}
+.buy-summary-total{font-weight:800;font-size:15px;color:var(--white);padding-top:10px;}
+@media(max-width:540px){.lp-slots-grid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:380px){.lp-slots-grid{grid-template-columns:repeat(2,1fr);}}
+
+</style>
+</head>
+<body>
+<!-- ═══════ LANDING PAGE ═══════ -->
+<div id="landing">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div>
+      <div class="hero-eyebrow">
+        <div class="hero-eyebrow-dot"></div>
+        Educación Web3 · Learn to Earn · BSC
+      </div>
+      <h1 class="hero-h1">Aprende.<br/>Construye.<br/><span>Gana.</span></h1>
+      <p class="hero-desc">ATLASH es una plataforma educativa Web3 basada en el modelo <strong>Learn to Earn</strong>. Adquiere conocimientos prácticos en blockchain, DeFi y tecnologías descentralizadas mientras participas en un ecosistema de recompensas reales en USDT.</p>
+      <div class="hero-ctas">
+        <button class="hero-cta-main" onclick="showDapp()">Comenzar ahora →</button>
+        <button class="hero-cta-sec" onclick="scrollToSection('#how')">¿Cómo funciona?</button>
+      </div>
+      <p class="hero-note">Sin custodio · Smart contracts auditados · Recompensas en USDT</p>
+    </div>
+
+    <div class="hero-visual">
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:20px;">Tu progreso educativo</div>
+      <div class="hv-grid">
+        <div class="hv-card"><div class="hv-label">Rendimiento diario</div><div class="hv-val">0.5–1.3<span style="font-size:16px;">%</span></div><div class="hv-sub">Dinámico según cobertura</div></div>
+        <div class="hv-card"><div class="hv-label">Cap máximo</div><div class="hv-val">200<span style="font-size:16px;">%</span></div><div class="hv-sub">Del valor del slot</div></div>
+      </div>
+      <div class="hv-row"><span class="hv-row-label">Usuarios en la plataforma</span><span class="hv-row-val" id="hero-users">—</span></div>
+      <div class="hv-row"><span class="hv-row-label">Principal activo</span><span class="hv-row-val" id="hero-principal">—</span></div>
+      <div class="hv-row"><span class="hv-row-label">Red</span><span class="hv-row-val">BSC · Testnet</span></div>
+      <div class="hv-row"><span class="hv-row-label">Contrato</span><span class="hv-row-val"><span class="hv-badge">Audited ✓</span></span></div>
+    </div>
+  </section>
+
+  <!-- STATS BAR -->
+  <div class="stats-bar">
+    <div class="stats-inner">
+      <div class="stat-item"><div class="stat-num"><span id="stat-total-p">—</span></div><div class="stat-label">Principal activo total</div></div>
+      <div class="stat-item"><div class="stat-num"><span id="stat-users">—</span></div><div class="stat-label">Usuarios registrados</div></div>
+      <div class="stat-item"><div class="stat-num"><span id="stat-rate">0.5–1.3<span style="font-size:20px;">%</span></span></div><div class="stat-label">Rendimiento diario</div></div>
+      <div class="stat-item"><div class="stat-num"><span>200<span style="font-size:20px;">%</span></span></div><div class="stat-label">Cap máximo de retorno</div></div>
+    </div>
+  </div>
+
+  <!-- PROPÓSITO EDUCATIVO -->
+  <div id="educacion" class="edu-section">
+    <div class="section">
+      <div class="section-eyebrow">Nuestra misión</div>
+      <h2 class="section-h2">La educación que te conecta con el futuro</h2>
+      <p class="section-desc">En Atlash formamos la nueva generación de creadores, emprendedores y profesionales digitales mediante formación práctica en tecnologías Web3, blockchain e innovación descentralizada.</p>
+      <div class="edu-grid">
+        <div class="edu-card">
+          <div class="edu-card-icon">📚</div>
+          <div class="edu-card-h">Formación práctica</div>
+          <div class="edu-card-desc">Aprende habilidades aplicables al mundo real. Contenido diseñado para llevarte de cero a experto en tecnologías descentralizadas.</div>
+        </div>
+        <div class="edu-card">
+          <div class="edu-card-icon">🌐</div>
+          <div class="edu-card-h">Comunidad global</div>
+          <div class="edu-card-desc">Conecta con personas de todo el mundo que están transformando su conocimiento en oportunidades dentro del ecosistema Web3.</div>
+        </div>
+        <div class="edu-card">
+          <div class="edu-card-icon">🛠</div>
+          <div class="edu-card-h">Proyectos reales</div>
+          <div class="edu-card-desc">Desarrolla experiencia construyendo en entornos reales. No solo teoría — aplica lo que aprendes desde el primer día.</div>
+        </div>
+        <div class="edu-card">
+          <div class="edu-card-icon">💎</div>
+          <div class="edu-card-h">Economía descentralizada</div>
+          <div class="edu-card-desc">Participa en nuevas oportunidades digitales. Tu aprendizaje genera valor real dentro del ecosistema Atlash.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ÁREAS DE ESTUDIO -->
+  <div class="areas-section">
+    <div class="section">
+      <div class="section-eyebrow">Áreas de formación</div>
+      <h2 class="section-h2">Así ganas mientras aprendes</h2>
+      <p class="section-desc">Accede a rutas educativas especializadas y completa actividades diseñadas para reforzar tus conocimientos. Cada avance te acerca a nuevas oportunidades dentro del ecosistema Atlash.</p>
+      <div class="areas-grid">
+        <div class="area-pill">⛓ Blockchain</div>
+        <div class="area-pill">📜 Smart Contracts</div>
+        <div class="area-pill">🏦 DeFi</div>
+        <div class="area-pill">🎨 NFTs</div>
+        <div class="area-pill">🏛 DAOs</div>
+        <div class="area-pill">🤖 IA y Web3</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div id="how">
+  <div class="section">
+    <div class="section-eyebrow">Cómo funciona</div>
+    <h2 class="section-h2">Cuatro pasos hacia tus recompensas</h2>
+    <p class="section-desc">El modelo Learn to Earn de Atlash es simple, transparente y diseñado para que tu participación genere valor real.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-h">Aprende</div>
+        <div class="step-desc">Accede a contenido educativo de alta calidad. Videos diarios, artículos y actividades prácticas sobre blockchain, DeFi, NFTs, DAOs e inteligencia artificial aplicada.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-h">Completa actividades</div>
+        <div class="step-desc">Realiza el video del día, mantén tu racha activa y demuestra tu aprendizaje. Cada día de participación suma a tu historial dentro del protocolo.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-h">Participa en la red</div>
+        <div class="step-desc">Invita a nuevos usuarios, construye tu equipo y contribuye al crecimiento de la comunidad. La red multiplica las oportunidades para todos.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-h">Recibe recompensas</div>
+        <div class="step-desc">Usuarios elegibles reciben rendimiento diario en USDT (0.5%–1.3% dinámico) directamente en su wallet. Sin intermediarios, sin custodio.</div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- SLOTS -->
+  <div id="slots-lp" class="slots-section">
+    <div class="slots-inner">
+      <div class="section-eyebrow">Programa de Slots</div>
+      <h2 class="section-h2">Tu aprendizaje genera valor</h2>
+      <p class="section-desc" style="color:var(--gray-500);">Activa un Slot para participar en el protocolo LearnEarn. Cada slot genera rendimiento diario dinámico (0.5%–1.3%) hasta alcanzar el 200% del valor inicial.</p>
+      <div class="slots-grid">
+        <div class="slot-item"><div class="slot-amount">$10</div><div class="slot-roi">0.5% – 1.3% diario</div><div class="slot-cap">Cap: $20</div></div>
+        <div class="slot-item"><div class="slot-amount">$20</div><div class="slot-roi">0.5% – 1.3% diario</div><div class="slot-cap">Cap: $40</div></div>
+        <div class="slot-item"><div class="slot-amount">$40</div><div class="slot-roi">0.5% – 1.3% diario</div><div class="slot-cap">Cap: $80</div></div>
+        <div class="slot-item featured"><div class="slot-amount">$80</div><div class="slot-roi">0.5% – 1.3% diario</div><div class="slot-cap">Cap: $160</div></div>
+        <div class="slot-item featured"><div class="slot-amount">$160</div><div class="slot-roi">0.5% – 1.3% diario</div><div class="slot-cap">Cap: $320</div></div>
+        <div class="slot-item featured"><div class="slot-amount">$320</div><div class="slot-roi">0.5% – 1.3% diario</div><div class="slot-cap">Cap: $640</div></div>
+        <div class="slot-item"><div class="slot-amount">$640</div><div class="slot-roi">0.5% – 1.3% diario</div><div class="slot-cap">Cap: $1,280</div></div>
+        <div class="slot-item"><div class="slot-amount">$1,280</div><div class="slot-roi">0.5% – 1.3% diario</div><div class="slot-cap">Cap: $2,560</div></div>
+        <div class="slot-item"><div class="slot-amount">$2,560</div><div class="slot-roi">0.5% – 1.3% diario</div><div class="slot-cap">Cap: $5,120</div></div>
+        <div class="slot-item"><div class="slot-amount">$5,120</div><div class="slot-roi">0.5% – 1.3% diario</div><div class="slot-cap">Cap: $10,240</div></div>
+        <div class="slot-item"><div class="slot-amount">$10,240</div><div class="slot-roi">0.5% – 1.3% diario</div><div class="slot-cap">Cap: $20,480</div></div>
+        <div class="slot-item"><div class="slot-amount">$20,480</div><div class="slot-roi">0.5% – 1.3% diario</div><div class="slot-cap">Cap: $40,960</div></div>
+        <div class="slot-item"><div class="slot-amount">$40,960</div><div class="slot-roi">0.5% – 1.3% diario</div><div class="slot-cap">Cap: $81,920</div></div>
+        <div class="slot-item"><div class="slot-amount">$81,920</div><div class="slot-roi">0.5% – 1.3% diario</div><div class="slot-cap">Cap: $163,840</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RANKS -->
+  <div class="ranks-section">
+    <div class="section">
+      <div class="section-eyebrow">Programa de rangos</div>
+      <h2 class="section-h2" style="color:var(--white);">Construye el futuro desde hoy</h2>
+      <p class="section-desc">Desarrolla habilidades altamente demandadas mientras colaboras en un ecosistema diseñado para impulsar la innovación descentralizada. Crece junto a una comunidad enfocada en el futuro digital.</p>
+      <div class="ranks-grid">
+        <div class="rank-card"><div class="rank-badge r1">R1</div><div class="rank-name">Nivel 1</div><div class="rank-desc">Acceso al pool de comisiones básico. Comienza a construir tu red.</div></div>
+        <div class="rank-card"><div class="rank-badge r2">R2</div><div class="rank-name">Nivel 2</div><div class="rank-desc">Pool de comisiones ampliado. Más volumen de red calificado.</div></div>
+        <div class="rank-card"><div class="rank-badge r3">R3</div><div class="rank-name">Nivel 3</div><div class="rank-desc">Acceso a pools de liderazgo intermedios y comisiones superiores.</div></div>
+        <div class="rank-card"><div class="rank-badge r4">R4</div><div class="rank-name">Nivel 4</div><div class="rank-desc">Reconocimiento como líder de comunidad. Pools exclusivos.</div></div>
+        <div class="rank-card"><div class="rank-badge r5">R5</div><div class="rank-name">Nivel 5</div><div class="rank-desc">Top performer. Acceso al pool Top Five mensual.</div></div>
+        <div class="rank-card"><div class="rank-badge r6">R6</div><div class="rank-name">Nivel 6</div><div class="rank-desc">Liderazgo avanzado. Distribución de comisiones premium.</div></div>
+        <div class="rank-card r7-card"><div class="rank-badge r7">R7</div><div class="rank-name">Nivel 7 — Élite</div><div class="rank-desc">El rango más alto del protocolo. Pool de comisiones máximo y reconocimiento global dentro del ecosistema Atlash.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMMUNITY -->
+  <div class="community-section">
+    <div class="section" style="text-align:center;">
+      <div class="section-eyebrow">Comunidad global</div>
+      <h2 class="section-h2">Sé parte de nuestra comunidad</h2>
+      <p class="section-desc" style="margin:0 auto 36px;">Conecta, aprende y crece junto a miles de usuarios que están transformando su conocimiento en oportunidades dentro del ecosistema Web3. Participa en eventos, retos educativos y programas de recompensas.</p>
+      <div class="community-links">
+        <a href="https://x.com" target="_blank" class="comm-link">
+          <span style="font-size:20px;">𝕏</span> Twitter / X
+        </a>
+        <a href="https://discord.com" target="_blank" class="comm-link">
+          <span style="font-size:20px;">💬</span> Discord
+        </a>
+        <a href="https://linkedin.com" target="_blank" class="comm-link">
+          <span style="font-size:20px;">💼</span> LinkedIn
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA + BUY SLOT -->
+  <div class="cta-section" id="comprar">
+    <div class="section" style="text-align:center;">
+      <div class="section-eyebrow">Únete ahora</div>
+      <h2 class="section-h2" style="color:var(--white);">Comienza tu camino en Web3</h2>
+      <p class="section-desc" style="color:rgba(255,255,255,.7);margin:0 auto 48px;">Conecta tu wallet, activa tu primer Slot y empieza a generar recompensas mientras aprendes sobre blockchain, DeFi y el futuro digital.</p>
+
+      <!-- ── COMPRAR SLOT (LANDING) ── -->
+      <div class="buy-card">
+        <div class="buy-card-head">Activa tu primer Slot</div>
+        <div class="buy-card-sub">Elige el monto de tu slot y el wallet de tu patrocinador</div>
+
+        <!-- Sponsor field -->
+        <div class="buy-field">
+          <label class="buy-label">Patrocinador (upline)</label>
+          <input class="buy-input" id="lp-sponsor" placeholder="0x… wallet de quien te invitó" />
+        </div>
+
+        <!-- Slot selector -->
+        <div class="buy-field">
+          <label class="buy-label">Monto del Slot</label>
+          <div class="lp-slots-grid" id="lp-slot-chips">
+            <!-- Generado por JS -->
+          </div>
+        </div>
+
+        <!-- Summary box -->
+        <div class="buy-summary" id="lp-summary" style="display:none;">
+          <div class="buy-summary-row"><span>Slot seleccionado</span><span id="lp-sum-amount">—</span></div>
+          <div class="buy-summary-row"><span>Fee de activación</span><span id="lp-sum-fee">—</span></div>
+          <div class="buy-summary-row buy-summary-total"><span>Total USDT</span><span id="lp-sum-total">—</span></div>
+          <div class="buy-summary-row" style="font-size:11px;color:var(--gray-400);border:none;padding-top:0;">Cap máximo (200%): <span id="lp-sum-cap">—</span></div>
+        </div>
+
+        <!-- CTA button -->
+        <button class="hero-cta-main" id="lp-buy-btn" onclick="landingBuySlot()" style="width:100%;justify-content:center;margin-top:8px;" disabled>
+          Selecciona un slot para continuar
+        </button>
+
+        <!-- Referral link section -->
+        <div id="lp-ref-section" style="display:none;margin-top:16px;padding:12px;background:rgba(255,255,255,.05);border-radius:10px;border:1px solid rgba(255,255,255,.1);">
+          <div style="font-size:12px;color:rgba(255,255,255,.6);margin-bottom:6px;">Tu link de referido</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="lp-ref-link" style="flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:8px 12px;font-size:11px;font-family:var(--mono);color:var(--white);" readonly/>
+            <button onclick="copyRef()" class="hero-cta-sec" style="padding:8px 16px;font-size:12px;">Copiar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="lp-footer">
+    <div class="lp-footer-inner">
+      <div>
+        <div class="lp-footer-brand">ATLASH</div>
+        <div class="lp-footer-tagline">Aprende. Construye. Gana.</div>
+        <div style="font-size:11px;color:var(--gray-600);margin-top:8px;">Plataforma educativa Web3 · Learn to Earn · BSC</div>
+      </div>
+      <div class="lp-footer-links">
+        <a href="#how" onclick="scrollToSection('#how')">Cómo funciona</a>
+        <a href="#educacion" onclick="scrollToSection('#educacion')">Educación</a>
+        <a href="#slots-lp" onclick="scrollToSection('#slots-lp')">Slots</a>
+        <a href="#comprar" onclick="scrollToSection('#comprar')">Comenzar</a>
+      </div>
+      <div style="font-size:11px;color:var(--gray-600);text-align:right;line-height:1.8;">
+        Smart contracts auditados<br/>
+        Sin custodio · Binance Smart Chain<br/>
+        <span style="color:var(--gray-700);">© 2025 Atlash Protocol</span>
+      </div>
+    </div>
+  </footer>
+
+</div>
+
+
+<script>
+
+// ═══════════════════════════════════════════════════════════
+// ATLASH LearnEarn · Landing + DApp
+// ═══════════════════════════════════════════════════════════
+
+// ── NETWORK CONFIG ──
+const NETS = {
+  mainnet:{
+    label:'BSC Mainnet',chainId:56,chainIdHex:'0x38',
+    rpcs:['https://bsc-dataseed1.binance.org/','https://bsc-dataseed2.binance.org/','https://bsc.publicnode.com'],
+    explorer:'https://bscscan.com',
+    nativeCurrency:{name:'BNB',symbol:'BNB',decimals:18}
+  },
+  testnet:{
+    label:'BSC Testnet',chainId:97,chainIdHex:'0x61',
+    rpcs:[
+      'https://bsc-testnet-rpc.publicnode.com',
+      'https://data-seed-prebsc-1-s1.binance.org:8545/',
+      'https://data-seed-prebsc-2-s1.binance.org:8545/',
+      'https://data-seed-prebsc-1-s2.binance.org:8545/',
+      'https://data-seed-prebsc-2-s2.binance.org:8545/',
+      'https://bsc-testnet.drpc.org',
+      'https://97.rpc.thirdweb.com',
+    ],
+    explorer:'https://testnet.bscscan.com',
+    nativeCurrency:{name:'tBNB',symbol:'tBNB',decimals:18}
+  }
+};
+
+// ── DEPLOY ADDRESSES ──
+const DEPLOY_MAINNET = {
+  usdt:       '0x55d398326f99059fF775485246999027B3197955',
+  core:       '0x8158C4daCF848A92c90830f803383bb2e10EA097',
+  pool:       '0xB4937207dFEA9Ced60e15D3A08F9CD7D0C91eF9B',
+  rank:       '0x862d49145A0640ff4f1C9E80Dfe33BEAaDe6b39d',
+  treasury:   '0x46C6180Af0FF2A4E9f11f5701A0183eb2404C344',
+  slot:       '0x2e37Bc937e2aD0Aea41A20192e4112E2169AAC3e',
+  rewards:    '0xFA00A1C90D25c763032280bb35163ab9c81004d8',
+};
+
+const DEPLOY_TESTNET = {
+  usdt:       '0xea0b64B081c5a37ab51996b4A7e9B99559ffd782',
+  core:       '0x7406f25AF83Da110fe4b048f574FA2963a6b30cf',
+  pool:       '0x7E5d8B9f0e3A4198d028C121bb4f2f0C3F20139b',
+  rank:       '0x8B0E6f6a6778B35C5Dd893795ED647a271Ed3D56',
+  treasury:   '0x87D443FAD5a4C3d9bE193960e359c54c57a40201',
+  slot:       '0xB09687A566E430643C6B7eDCfF2ec2BDb7dcfdD2',
+  rewards:    '0xf524aC6B614DCC9b4A3DC22cA82De46691B942C1',
+};
+
+// Root user (company root wallet)
+const COMPANY_ROOT = '0x975C1768E0213D778287cb7A3324C8152389160E';
+
+// Hardcoded founders — bypass gate without needing contract call
+const PROTOCOL_FOUNDERS = [
+  '0x08637844286742617ffDF9c89C9466eA475C6a34',
+  '0x975c75f0577c31b7E9F6EC2fB89FBa48BbEd8eD6',
+  '0x6dF15Fb8e6601eA09acB2439119926486dDdce2A',
+  '0x010d4BcaB727D1b001E39c4eE1c8B7F15a40D131',
+].map(a => a.toLowerCase());
+
+// ── ABIs ──
+const CORE_ABI = [
+  // View
+  "function getUserStatus(address) view returns (uint8 activeFlag, uint256 validUntil, address upline, bool exists, bool frozen)",
+  "function userInfo(address) view returns (bool exists, bool frozen, bool isRoot_, address upline, uint256 joinedAt, uint256 totalSlotVolume)",
+  "function userCommercialInfo(address) view returns (uint8 role, address commercialPartner, address master, string reason)",
+  "function commercialContextOf(address) view returns (address commercialPartner, address master)",
+  "function isRoot(address) view returns (bool)",
+  "function accountStatusOf(address) view returns (uint8)",
+  "function totalUsers() view returns (uint256)",
+  "function userAt(uint256) view returns (address)",
+  "function directCount(address) view returns (uint256)",
+  "function directAt(address, uint256) view returns (address)",
+  "function currentMonthIndex() view returns (uint256)",
+  "function paused() view returns (bool)",
+  "function companyRoot() view returns (address)",
+  "function owner() view returns (address)",
+  "function guardian() view returns (address)",
+  "function autoVolumeDepth() view returns (uint8)",
+  "function slotProgram() view returns (address)",
+  "function ranksModule() view returns (address)",
+  "function poolsModule() view returns (address)",
+  // Admin write
+  "function setPaused(bool) external",
+  "function setGuardian(address) external",
+  "function setCompanyRoot(address) external",
+  "function setModules(address, address) external",
+  "function setSlotProgram(address) external",
+  "function setVolumeUpdater(address) external",
+  "function setAutoVolumeDepth(uint8) external",
+  "function freeze(address, bool) external",
+  "function setUserAccountStatus(address, uint8, string) external",
+  "function adminRegisterUser(address, address, uint8, address, string) external",
+  "function setCommercialPartnerRole(address, string) external",
+  "function setCommercialPartnerAndMasterRole(address, string) external",
+  "function setMasterRole(address, address, string) external",
+  "function clearSpecialRole(address, string) external",
+  "function setCommercialLineage(address, address, address, string) external"
+];
+
+const SLOT_ABI = [
+  // View
+  "function nextPositionId() view returns (uint256)",
+  "function totalActivePrincipal() view returns (uint256)",
+  "function totalRemainingLiability() view returns (uint256)",
+  "function remainingLiabilityBP() view returns (uint256)",
+  "function previewDynamicRateBP() view returns (uint16)",
+  "function coverageBP() view returns (uint256)",
+  "function minDailyRateBP() view returns (uint16)",
+  "function maxDailyRateBP() view returns (uint16)",
+  "function dayRateBP(uint32) view returns (uint16)",
+  "function positionsOf(address) view returns (uint256[])",
+  "function highestActiveSlotLevel(address) view returns (uint8)",
+  "function highestActiveOrGraceSlotLevel(address) view returns (uint8)",
+  "function activePositionByLevel(address, uint8) view returns (uint256)",
+  "function positions(uint256) view returns (address user, uint8 slotLevel, uint256 slotAmount, uint256 paidOut, uint256 capMax, uint32 openedDay, uint32 lastSyncDay, uint32 currentStreak, uint32 bestStreak, bool rewardActive, bool completed, bool roiEnabled)",
+  "function slotLevelByAmount(uint256) view returns (uint8)",
+  "function slotAmountByLevel(uint8) view returns (uint256)",
+  "function activationFeeByLevel(uint8) view returns (uint256)",
+  "function paused() view returns (bool)",
+  "function buyPaused() view returns (bool)",
+  "function syncPaused() view returns (bool)",
+  // User write
+  "function buySlot(uint256, address) external returns (uint256)",
+  "function restartSlot(uint8) external returns (uint256)",
+  "function sync(uint256) external",
+  // Admin write
+  "function setPaused(bool) external",
+  "function setBuyPaused(bool) external",
+  "function setSyncPaused(bool) external",
+  "function setDynamicRateBounds(uint16, uint16) external",
+  "function setDailyRateForDay(uint32, uint16) external",
+  "function forceMaxRateForDay(uint32) external",
+  "function clearManualDailyRate(uint32) external",
+  "function setForcedMaxRatePolicy(uint8, uint32) external",
+  "function adminActivateCommercialSlot(address, address, uint8, uint8, address, string) external returns (uint256)",
+  "function adminActivateCommercialSlots(address, address, uint8[], uint8, address, string) external returns (uint256[])"
+];
+
+const RANK_ABI = [
+  // View
+  "function userRank(address) view returns (uint8)",
+  "function personalVolume(address) view returns (uint256)",
+  "function qualifiedNetworkVolume(address) view returns (uint256)",
+  "function totalNetworkVolume(address) view returns (uint256)",
+  "function canAccumulateQualifiedVolume(address) view returns (bool)",
+  "function rankConfig(uint256) view returns (uint256 qualifiedVolumeRequired, uint8 minSlotLevel, bool enabled)",
+  "function rankPoolByMonth(uint256, uint8) view returns (uint256)",
+  "function rankPoolClaimable(uint256, uint8, address) view returns (uint256)",
+  "function rankPoolFinalized(uint256, uint8) view returns (bool)",
+  "function rankPoolScanStarted(uint256, uint8) view returns (bool)",
+  "function rankPoolScanCursor(uint256, uint8) view returns (uint256)",
+  "function scannedRankPoolCandidateCount(uint256, uint8) view returns (uint256)",
+  "function pendingRankPools(address, uint256) view returns (uint256)",
+  "function isQualifiedForPool(address, uint8) view returns (bool)",
+  "function monthlyVolumeBurnBP() view returns (uint16)",
+  // User write
+  "function refreshRank(address) external returns (uint8)",
+  "function claimRankPool(uint256, uint8) external",
+  "function claimRankPools(uint256) external",
+  "function claimSelectedRankPools(uint256, uint8[]) external",
+  // Admin write (scan-based only — no manual list)
+  "function setRankConfig(uint8, uint256, uint8, bool) external",
+  "function startRankPoolScan(uint256, uint8, bytes32) external",
+  "function scanRankPoolCandidatesBatch(uint256, uint8, uint256) external",
+  "function finalizeScannedRankPoolMonth(uint256, uint8) external",
+  "function setMonthlyVolumeBurnBP(uint16) external",
+  "function burnQualifiedVolumeForUser(uint256, address, uint16, bytes32, string) external",
+  "function burnQualifiedVolumeBatch(uint256, address[], bytes32) external"
+];
+
+const POOL_ABI = [
+  // View
+  "function leadershipPoolByMonth(uint256) view returns (uint256)",
+  "function leadershipFinalized(uint256) view returns (bool)",
+  "function pendingTopFive(address, uint256) view returns (uint256)",
+  "function monthlyVolume(address, uint256) view returns (uint256)",
+  "function minTopFiveMonthlyVolume() view returns (uint256)",
+  // User write
+  "function claimTopFive(uint256) external",
+  "function claimTopFiveMonths(uint256[]) external",
+  // Admin write
+  "function setMinTopFiveMonthlyVolume(uint256) external",
+  "function setTopFiveSharesBP(uint16[5], uint16) external",
+  "function finalizeTopFiveMonth(uint256, address[5], bytes32) external"
+];
+
+const REWARD_ABI = ["function availableRewardsLiquidity() view returns (uint256)"];
+const ENTERPRISE_ABI = [
+  // Bucket balances
+  "function founderPoolBalance() view returns (uint256)",
+  "function operationsBalance() view returns (uint256)",
+  "function commercialPartnerPoolBalance() view returns (uint256)",
+  "function activationFeeBalance() view returns (uint256)",
+  "function corporateFeeReserveBalance() view returns (uint256)",
+  "function masterRevenueBalance() view returns (uint256)",
+  // Founders — fixed array[4] public → getter needs index
+  "function founders(uint256) view returns (address)",
+  "function founderSharesBP(uint256) view returns (uint16)",
+  "function pendingFounderRevenue(address) view returns (uint256)",
+  "function totalFounderAllocated() view returns (uint256)",
+  "function totalFounderClaimed() view returns (uint256)",
+  // Partners
+  "function isCommercialPartner(address) view returns (bool)",
+  "function commercialPartnerShareBP(address) view returns (uint16)",
+  "function commercialPartnerStatus(address) view returns (uint8)",
+  "function commercialPartnerStatusReason(address) view returns (string)",
+  "function pendingCommercialPartnerRevenue(address) view returns (uint256)",
+  "function commercialPartnerCount() view returns (uint256)",
+  "function totalCommercialPartnerAllocated() view returns (uint256)",
+  "function totalCommercialPartnerClaimed() view returns (uint256)",
+  // Masters
+  "function isMaster(address) view returns (bool)",
+  "function masterStatus(address) view returns (uint8)",
+  "function masterStatusReason(address) view returns (string)",
+  "function masterShareBP(address) view returns (uint16)",
+  "function masterAccumulatedOrganizationVolume(address) view returns (uint256)",
+  "function masterPendingClaim(address) view returns (uint256)",
+  "function totalMasterAllocated() view returns (uint256)",
+  "function totalMasterClaimed() view returns (uint256)",
+  "function totalFeesCollected() view returns (uint256)",
+  // Protocol stats
+  "function commercialPartnerCount() view returns (uint256)",
+  "function totalOperationsWithdrawn() view returns (uint256)",
+  "function totalCorporateFeesWithdrawn() view returns (uint256)",
+  "function corporateFeeReserveBalance() view returns (uint256)",
+  // Recovery (V16.8.2)
+  "function accountedUSDTBalance() view returns (uint256)",
+  "function excessUSDTBalance() view returns (uint256)",
+  "function recoverExcessUSDT(address, uint256) external",
+  // User write
+  "function claimFounderRevenue() external",
+  "function claimCommercialPartnerRevenue() external",
+  "function claimMasterRevenue() external",
+  // Admin write
+  "function setInitialFounders(address[4], uint16[4]) external",
+  "function configureCommercialPartners(address[], uint16[]) external",
+  "function setCommercialPartnerStatus(address, uint8, string) external",
+  "function registerMaster(address) external",
+  "function removeMaster(address) external",
+  "function setMasterStatus(address, uint8, string) external",
+  "function withdrawOperation(address, uint256) external",
+  "function withdrawCorporateFeeReserve(address, uint256) external",
+];
+const USDT_ABI = [
+  "function approve(address,uint256) returns (bool)",
+  "function allowance(address,address) view returns (uint256)",
+  "function balanceOf(address) view returns (uint256)",
+  "function transfer(address,uint256) returns (bool)",
+  "function decimals() view returns (uint8)"
+];
+const ERC20_ABI = USDT_ABI; // alias
+
+// ── STATE ──
+let activeNet = null, _netKey = 'testnet';
+let provider = null, signer = null, walletAddr = null;
+// ── Safe connection helper ──
+function _applySafeProvider(safeAddr, ethProvider) {
+  walletAddr = safeAddr.toLowerCase();
+  provider   = ethProvider;
+  const d    = DEPLOY_MAINNET;
+  contracts.core       = new ethers.Contract(d.core,     CORE_ABI,       ethProvider);
+  contracts.slot       = new ethers.Contract(d.slot,     SLOT_ABI,       ethProvider);
+  contracts.rank       = new ethers.Contract(d.rank,     RANK_ABI,       ethProvider);
+  contracts.pool       = new ethers.Contract(d.pool,     POOL_ABI,       ethProvider);
+  contracts.enterprise = new ethers.Contract(d.treasury, ENTERPRISE_ABI, ethProvider);
+  contracts.reward     = new ethers.Contract(d.rewards,  REWARD_ABI,     ethProvider);
+  contracts.usdt       = new ethers.Contract(d.usdt,     ERC20_ABI,      ethProvider);
+  addrs = d;
+  const lbl  = document.getElementById('wallet-label');
+  const pill = document.getElementById('wallet-pill');
+  const dot  = document.getElementById('wallet-dot');
+  if(lbl)  lbl.textContent = walletAddr.slice(0,6)+'…'+walletAddr.slice(-4);
+  if(pill) { pill.disabled = false; pill.classList.add('connected'); }
+  if(dot)  dot.className   = 'wallet-dot connected';
+}
+
+// ── Minimal Safe Apps SDK — implemented via postMessage protocol ──
+// Source: @safe-global/safe-apps-sdk v8.1.0 communication protocol
+const _SafeSDK = (() => {
+  const SDK_VERSION = '8.1.0';
+  const callbacks   = new Map();
+
+  const genId = () => {
+    const arr = new Uint8Array(5);
+    crypto.getRandomValues(arr);
+    return Array.from(arr, b => b.toString(16).padStart(2,'0')).join('');
+  };
+
+  // Listen for ALL messages from Safe parent
+  window.addEventListener('message', (event) => {
+    if (!event.data || typeof event.data !== 'object') return;
+    const { id, success, data, error } = event.data;
+    if (!id || !callbacks.has(id)) return;
+    const { resolve, reject } = callbacks.get(id);
+    callbacks.delete(id);
+    if (success === false) reject(new Error(error || 'Safe error'));
+    else resolve(data);
+  });
+
+  // Send once and wait
+  const sendOnce = (method, params, timeoutMs) => {
+    const id  = genId();
+    const msg = { id, method, params, env: { sdkVersion: SDK_VERSION } };
+    const origins = ['https://app.safe.global', 'https://gnosis-safe.io', '*'];
+    origins.forEach(o => { try { window.parent.postMessage(msg, o); } catch(e) {} });
+    return new Promise((resolve, reject) => {
+      callbacks.set(id, { resolve, reject });
+      setTimeout(() => {
+        if (callbacks.has(id)) { callbacks.delete(id); reject(new Error('timeout')); }
+      }, timeoutMs || 3000);
+    });
+  };
+
+  // Retry until success or maxAttempts reached
+  const send = async (method, params) => {
+    const maxAttempts = 10;
+    const delayMs     = 1000;
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        const result = await sendOnce(method, params, 3000);
+        console.log('[Safe] ' + method + ' OK on attempt ' + (i+1));
+        return result;
+      } catch(e) {
+        console.log('[Safe] ' + method + ' attempt ' + (i+1) + ' failed: ' + e.message);
+        if (i < maxAttempts - 1) await new Promise(r => setTimeout(r, delayMs));
+      }
+    }
+    throw new Error('Safe did not respond after ' + maxAttempts + ' attempts');
+  };
+
+  return {
+    getSafeInfo: ()          => send('getSafeInfo', undefined),
+    rpcCall:     (call, p)   => send('rpcCall', { call, params: p }),
+    sendTxs:     (txs)       => send('sendTransactions', { txs }),
+  };
+})();
+
+
+async function tryConnectSafeApp() {
+  try {
+    if (window.self === window.top) return false;
+
+    console.log('[Safe] Detected iframe context — requesting Safe info…');
+    const safeInfo = await _SafeSDK.getSafeInfo().catch(e => {
+      console.warn('[Safe] getSafeInfo failed:', e.message);
+      return null;
+    });
+
+    if (!safeInfo?.safeAddress) {
+      console.warn('[Safe] No safeAddress in response:', safeInfo);
+      return false;
+    }
+
+    const safeAddr = safeInfo.safeAddress;
+    console.log('[Safe] Connected as:', safeAddr);
+
+    // Build ethers provider that routes calls through Safe's rpcCall
+    const safeEIP1193 = {
+      request: async ({ method, params = [] }) => {
+        if (method === 'eth_accounts' || method === 'eth_requestAccounts')
+          return [safeAddr];
+        if (method === 'eth_chainId') return '0x38';
+        if (method === 'net_version')  return '56';
+        // Route RPC calls through Safe
+        try {
+          const result = await _SafeSDK.rpcCall(method, params);
+          return result;
+        } catch(e) {
+          throw new Error(`RPC ${method} failed: ${e.message}`);
+        }
+      },
+      on:             () => {},
+      removeListener: () => {},
+    };
+
+    const ethProvider = new ethers.BrowserProvider(safeEIP1193);
+
+    // For write operations, Safe handles signing via its own UI (sendTransactions)
+    // We build a custom signer that routes sendTransaction through Safe
+    const safeSigner = {
+      provider: ethProvider,
+      getAddress: async () => safeAddr,
+      sendTransaction: async (tx) => {
+        const safeTx = {
+          to:    tx.to,
+          value: tx.value?.toString() || '0',
+          data:  tx.data  || '0x',
+        };
+        const result = await _SafeSDK.sendTxs([safeTx]);
+        return { hash: result?.safeTxHash || result, wait: async () => ({}) };
+      },
+      // For signing typed data / messages
+      signMessage:     async (msg) => { throw new Error('Use Safe UI for signing'); },
+      signTypedData:   async ()    => { throw new Error('Use Safe UI for signing'); },
+      connect:         () => safeSigner,
+      _isSigner:       true,
+    };
+
+    // Override contract interactions to use Safe signer
+    walletAddr = safeAddr.toLowerCase();
+    provider   = ethProvider;
+    signer     = safeSigner;
+
+    const d = DEPLOY_MAINNET;
+    contracts.core       = new ethers.Contract(d.core,     CORE_ABI,       ethProvider);
+    contracts.slot       = new ethers.Contract(d.slot,     SLOT_ABI,       ethProvider);
+    contracts.rank       = new ethers.Contract(d.rank,     RANK_ABI,       ethProvider);
+    contracts.pool       = new ethers.Contract(d.pool,     POOL_ABI,       ethProvider);
+    contracts.enterprise = new ethers.Contract(d.treasury, ENTERPRISE_ABI, ethProvider);
+    contracts.reward     = new ethers.Contract(d.rewards,  REWARD_ABI,     ethProvider);
+    contracts.usdt       = new ethers.Contract(d.usdt,     ERC20_ABI,      ethProvider);
+    addrs = d;
+
+    // Wire write contracts to safe signer
+    contracts.core.__safeSigner       = safeSigner;
+    contracts.slot.__safeSigner       = safeSigner;
+    contracts.rank.__safeSigner       = safeSigner;
+    contracts.pool.__safeSigner       = safeSigner;
+    contracts.enterprise.__safeSigner = safeSigner;
+    contracts.reward.__safeSigner     = safeSigner;
+    contracts.usdt.__safeSigner       = safeSigner;
+
+    const lbl  = document.getElementById('wallet-label');
+    const pill = document.getElementById('wallet-pill');
+    const dot  = document.getElementById('wallet-dot');
+    if(lbl)  lbl.textContent = safeAddr.slice(0,6)+'…'+safeAddr.slice(-4);
+    if(pill) { pill.disabled = false; pill.classList.add('connected'); }
+    if(dot)  dot.className   = 'wallet-dot connected';
+
+    toast('🔐 Safe Multisig conectado · '+safeAddr.slice(0,10)+'…', 'success');
+    return true;
+
+  } catch(e) {
+    console.warn('[Safe auto-connect error]', e.message);
+    return false;
+  }
+}
+
+let currentUser = null;
+let contracts = {};
+let addrs = {};
+let selectedSlot = 0;
+
+const RANK_NAMES  = ['Sin rango','Rank 1','Rank 2','Rank 3','Rank 4','Rank 5','Rank 6','Rank 7'];
+const SLOT_AMOUNTS_ALL = [10,20,40,80,160,320,640,1280,2560,5120,10240,20480,40960,81920];
+
+// ── UTILS ──
+const fmt18  = n => { try{ return Number(ethers.formatUnits(n,18)).toLocaleString('es-CO',{minimumFractionDigits:2,maximumFractionDigits:2}); }catch{ return '0.00'; } };
+const fmt18s = n => { try{ const v=Number(ethers.formatUnits(n,18)); return v>=1000?v.toLocaleString('es-CO',{maximumFractionDigits:0}):v.toLocaleString('es-CO',{minimumFractionDigits:2,maximumFractionDigits:2}); }catch{ return '0'; } };
+const short  = a => (!a||a===ethers.ZeroAddress)?'—':a.slice(0,6)+'…'+a.slice(-4);
+const isAddr = v => /^0x[0-9a-fA-F]{40}$/.test((v||'').trim());
+const isZero = a => !a||a===ethers.ZeroAddress||a==='0x0000000000000000000000000000000000000000';
+
+function toast(msg,type='info'){
+  const w=document.getElementById('toasts');
+  const el=document.createElement('div');
+  el.className='toast';
+  el.innerHTML=`<div class="toast-bar toast-bar-${type}"></div><span>${msg}</span>`;
+  w.appendChild(el);
+  setTimeout(()=>el.remove(),4000);
+}
+
+async function copyText(t){ try{ await navigator.clipboard.writeText(t); toast('Copiado','success'); }catch{} }
+
+// ── LANDING ↔ DAPP ──
+function showLanding(){
+  document.getElementById('landing').style.display='block';
+  document.getElementById('dapp').style.display='none';
+  document.getElementById('landing-nav').style.display='';
+  document.getElementById('dapp-tabs-nav').style.display='none';
+  document.getElementById('btn-enter-dapp').style.display='';
+  document.getElementById('wallet-pill').style.display='none';
+  document.getElementById('nav-net-pill').style.display='none';
+  try { updateSidebarState(); } catch(e) {}
+}
+
+function showDapp(){
+  console.log('[showDapp] provider=', !!provider, 'activeNet=', activeNet?.label);
+  if(!provider){
+    showNetModal();
+    return;
+  }
+  _activateDapp();
+}
+
+function _activateDapp(){
+  console.log('[_activateDapp] called');
+  try { document.getElementById('landing').style.display='none'; } catch(e){}
+  try { document.getElementById('dapp').style.display='block'; } catch(e){}
+  try { document.getElementById('landing-nav').style.display='none'; } catch(e){}
+  try { document.getElementById('dapp-tabs-nav').style.display='flex'; } catch(e){}
+  try { document.getElementById('btn-enter-dapp').style.display='none'; } catch(e){}
+  try { document.getElementById('wallet-pill').style.display=''; } catch(e){}
+  try { document.getElementById('nav-net-pill').style.display=''; } catch(e){}
+  console.log('[_activateDapp] DOM done, starting data loads...');
+  console.log('[_activateDapp] contracts:', Object.keys(contracts).filter(k=>contracts[k]));
+  console.log('[_activateDapp] addrs:', addrs);
+  try { updateNavPill(); } catch(e){ console.error('updateNavPill',e); }
+  try { loadGlobalStats(); } catch(e){ console.error('loadGlobalStats',e); }
+  try { loadAllowedSlots(); } catch(e){ console.error('loadAllowedSlots',e); }
+  try { updateContractsTab(); } catch(e){ console.error('updateContractsTab',e); }
+  try { loadCoreStatus(); } catch(e){ console.error('loadCoreStatus',e); }
+  try { loadTreasury(); } catch(e){ console.error('loadTreasury',e); }
+}
+
+function scrollToSection(selector){
+  if(typeof selector !== 'string') return;
+  try {
+    const el = document.querySelector(selector);
+    if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  } catch(e) {}
+}
+
+// Scroll effect on topbar
+window.addEventListener('scroll',()=>{
+  document.getElementById('topbar').classList.toggle('scrolled',window.scrollY>20);
+});
+
+// ── NET MODAL ──
+let _pendingNetKey='mainnet';
+function showNetModal(){
+  _pendingNetKey='mainnet';
+  confirmNetModal();
+}
+
+function setNetModal(key){
+  key='mainnet';
+  _pendingNetKey=key;
+  const d=key==='mainnet'?DEPLOY_MAINNET:DEPLOY_TESTNET;
+  const ml=document.getElementById('nm-contracts-list');
+  if(ml){
+    ml.innerHTML=Object.entries({Core:d.core||'—',SlotProgram:d.slot||'—',RanksModule:d.rank||'—',PoolsModule:d.pool||'—',Rewards:d.rewards||'—',Enterprise:d.treasury||'—',USDT:d.usdt||'—'})
+      .map(([k,v])=>`<div><span style="color:var(--gray-400);">${k}:</span> ${v==='—'?'<span style="color:var(--red);">No disponible</span>':v.slice(0,16)+'…'}</div>`).join('');
+  }
+  document.getElementById('nm-main').className=key==='mainnet'?'btn-primary':'btn-secondary';
+  document.getElementById('nm-test').className=key==='testnet'?'btn-primary':'btn-secondary';
+}
+
+
+// Try each RPC until one responds
+async function createProvider(rpcs) {
+  for (const rpc of rpcs) {
+    try {
+      const p = new ethers.JsonRpcProvider(rpc);
+      // Quick test with 3s timeout
+      await Promise.race([
+        p.getBlockNumber(),
+        new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 3000))
+      ]);
+      console.log('[createProvider] using RPC:', rpc);
+      return p;
+    } catch(e) {
+      console.warn('[createProvider] RPC failed:', rpc, e.message.slice(0,40));
+    }
+  }
+  // Last resort — return first anyway
+  console.warn('[createProvider] all RPCs failed, using first');
+  return new ethers.JsonRpcProvider(rpcs[0]);
+}
+
+async function confirmNetModal(){
+  console.log('[confirmNetModal] starting, _pendingNetKey=', _pendingNetKey);
+  try {
+    document.getElementById('net-modal').style.display='none';
+    _netKey    = 'mainnet';
+    _pendingNetKey = 'mainnet';
+    activeNet  = NETS['mainnet'];
+    const d    = DEPLOY_MAINNET;
+    addrs      = { ...d };
+    provider   = await createProvider(activeNet.rpcs);
+
+    if(addrs.core)     contracts.core       = new ethers.Contract(addrs.core,     CORE_ABI,       provider);
+    if(addrs.slot)     contracts.slot       = new ethers.Contract(addrs.slot,     SLOT_ABI,       provider);
+    if(addrs.rank)     contracts.rank       = new ethers.Contract(addrs.rank,     RANK_ABI,       provider);
+    if(addrs.pool)     contracts.pool       = new ethers.Contract(addrs.pool,     POOL_ABI,       provider);
+    if(addrs.rewards)  contracts.reward     = new ethers.Contract(addrs.rewards,  REWARD_ABI,     provider);
+    if(addrs.treasury) contracts.enterprise = new ethers.Contract(addrs.treasury, ENTERPRISE_ABI, provider);
+    if(addrs.usdt)     contracts.usdt       = new ethers.Contract(addrs.usdt,     USDT_ABI,       provider);
+
+    toast('Conectado a ' + activeNet.label, 'success');
+    console.log('[confirmNetModal] calling _activateDapp, contracts.core=', !!contracts.core);
+    _activateDapp();
+    console.log('[confirmNetModal] _activateDapp done');
+  } catch(e) {
+    console.error('[confirmNetModal] ERROR:', e);
+    toast('Error al iniciar: ' + (e.message||String(e)).slice(0,80), 'error');
+  }
+}
+
+function updateNavPill(){
+  if(!activeNet) return;
+  const pill=document.getElementById('nav-net-pill');
+  const lbl=document.getElementById('nav-net-label');
+  const pulse=document.getElementById('nav-net-pulse');
+  if(lbl) lbl.textContent=activeNet.label;
+  if(pill) pill.className='net-pill-sm '+(activeNet===NETS.testnet?'testnet':'mainnet');
+  if(pulse) pulse.className='npulse '+(activeNet===NETS.testnet?'test':'main');
+}
+
+
+function clearLearnProgress() {
+  const lesson = getTodayLesson();
+  const key = 'learn-done-' + new Date().toISOString().slice(0,10);
+  localStorage.removeItem(key);
+  localStorage.removeItem(key + '-secs');
+  learnState.videoUnlocked  = false;
+  learnState.secondsWatched = 0;
+  learnState.syncedSlots    = {};
+  updateWatchUI();
+  if (walletAddr && contracts.slot) loadLearnSlots();
+  toast('Progreso de hoy reseteado', 'info');
+}
+
+// ── MAIN goTab (merged) ──
+function goTab(name) {
+  // Update tab buttons by data-tab attribute (not index — avoids misalignment)
+  document.querySelectorAll('.dtab').forEach(b => {
+    const isActive = b.dataset.tab === name;
+    b.classList.toggle('on', isActive);
+    b.style.color = isActive ? 'var(--blue)' : 'var(--gray-500)';
+    b.style.borderBottomColor = isActive ? 'var(--blue)' : 'transparent';
+    b.style.fontWeight = isActive ? '700' : '500';
+  });
+  document.querySelectorAll('.tpane').forEach(p => p.classList.toggle('on', p.id === 'tab-' + name));
+
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'contracts') { updateContractsTab(); loadCoreStatus(); }
+  if (name === 'admin')     loadAdminTab();
+  if (name === 'ranks')     loadRanksTab(currentUser || walletAddr);
+  if (name === 'founders')   loadFoundersTab();
+  if (name === 'commercial') loadCommercialTab(currentUser || walletAddr);
+  if (name === 'earnings')  loadEarningsTab();
+  if (name === 'pools')     loadPoolsData();
+  if (name === 'network')   loadNetworkTab(currentUser || walletAddr);
+  if (name === 'treasury')  loadTreasury();
+  if (name === 'slots' && contracts.slot) loadGlobalStats();
+  if (name === 'learn')     initLearnTab();
+  try { updateSidebarActive(name); } catch(e) {}
+}
+
+
+
+// ── DAPP TAB NAVIGATION ──
+// goTab merged below
+
+function switchNetTab(tab){
+  ['uni','slots'].forEach(t=>{
+    const btn=document.getElementById('nt-'+t+'-btn');
+    const pane=document.getElementById('nt-pane-'+t);
+    if(btn) btn.classList.toggle('on',t===tab);
+    if(pane) pane.style.display=t===tab?'block':'none';
+  });
+}
+
+// ── WALLET CONNECTION ──
+function openWalletModal(){
+  if(walletAddr){ disconnectWallet(); return; }
+  const bg=document.createElement('div');
+  bg.className='wallet-modal-bg';
+  bg.innerHTML=`<div class="wallet-modal">
+    <div class="wallet-modal-title">Conectar wallet</div>
+    <div class="wallet-modal-sub">Selecciona tu wallet para conectarte a ${activeNet?.label||'BSC'}.</div>
+    <div class="wallet-options">
+      <button class="wallet-option" onclick="connectWith('metamask')">
+        <div class="wallet-option-icon">🦊</div>
+        <div><div class="wallet-option-name">MetaMask</div><div class="wallet-option-sub">Extensión de navegador · App móvil</div></div>
+        <span class="wallet-option-badge">Popular</span>
+      </button>
+      <button class="wallet-option" onclick="connectWithSafe()" style="border:1.5px solid #3b82f6;">
+        <div class="wallet-option-icon">🛡</div>
+        <div><div class="wallet-option-name">Safe Multisig</div><div class="wallet-option-sub">app.safe.global → Apps → esta URL</div></div>
+        <span class="wallet-option-badge" style="background:var(--blue-bg);color:var(--blue);">Multisig</span>
+      </button>
+      <button class="wallet-option" onclick="connectWith('trust')">
+        <div class="wallet-option-icon">🛡️</div>
+        <div><div class="wallet-option-name">Trust Wallet</div><div class="wallet-option-sub">App móvil · Oficial Binance</div></div>
+      </button>
+      <button class="wallet-option" onclick="connectWith('safepal')">
+        <div class="wallet-option-icon">🔒</div>
+        <div><div class="wallet-option-name">SafePal</div><div class="wallet-option-sub">Hardware + Software · Multi-chain</div></div>
+      </button>
+    </div>
+    <button onclick="this.closest('.wallet-modal-bg').remove()" class="btn-outline" style="width:100%;margin-top:14px;">Cancelar</button>
+  </div>`;
+  document.body.appendChild(bg);
+  bg.addEventListener('click',e=>{ if(e.target===bg) bg.remove(); });
+}
+
+function disconnectWallet(){
+  walletAddr=null; signer=null;
+  document.getElementById('wallet-label').textContent='Conectar wallet';
+  document.getElementById('wallet-dot').className='wallet-dot';
+  document.getElementById('wallet-pill').classList.remove('connected');
+  toast('Wallet desconectada','info');
+  showDappGate('gate');
+  try { updateSidebarState(); closeSidebar(); } catch(e) {}
+}
+
+async function connectWith(type){
+  // Close modal
+  document.querySelectorAll('.wallet-modal-bg').forEach(m=>m.remove());
+
+  if(window.location.protocol==='file:'){ showHelpModal(); return; }
+  if(!window.ethereum){ showHelpModal(); return; }
+  if(!activeNet){ toast('Selecciona la red primero','error'); return; }
+
+  const prov = window.ethereum;
+  const lbl  = document.getElementById('wallet-label');
+  const pill = document.getElementById('wallet-pill');
+
+  // helper to reset button state on any failure
+  const reset = (msg) => {
+    lbl.textContent = msg || 'Conectar wallet';
+    pill.disabled = false;
+  };
+
+  lbl.textContent = 'Conectando…';
+  pill.disabled = true;
+
+  try {
+    // 1. Request accounts — opens MetaMask/Trust/SafePal popup
+    const accounts = await prov.request({ method: 'eth_requestAccounts' });
+    if (!accounts || !accounts[0]) throw new Error('Sin cuentas');
+
+    // 2. Check current chain
+    const curHex   = await prov.request({ method: 'eth_chainId' });
+    const curId    = parseInt(curHex, 16);
+    const targetId = activeNet.chainId;
+
+    // 3. Switch chain if needed — fire-and-forget style (no waiting loop)
+    if (curId !== targetId) {
+      toast('Cambiando a ' + activeNet.label + '…', 'info');
+      try {
+        await prov.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: activeNet.chainIdHex }]
+        });
+      } catch (se) {
+        if (se.code === 4001) { toast('Cambio de red rechazado', 'error'); reset(); return; }
+        // Chain not in wallet yet — add it
+        try {
+          await prov.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: activeNet.chainIdHex,
+              chainName: activeNet.label,
+              nativeCurrency: activeNet.nativeCurrency,
+              rpcUrls: activeNet.rpcs,
+              blockExplorerUrls: [activeNet.explorer]
+            }]
+          });
+        } catch (ae) {
+          if (ae.code === 4001) { toast('Agregar red rechazado', 'error'); }
+          else { toast('No se pudo agregar la red: ' + (ae.message||'').slice(0,40), 'error'); }
+          reset(); return;
+        }
+      }
+
+      // Verify chain actually changed
+      const newHex = await prov.request({ method: 'eth_chainId' });
+      if (parseInt(newHex, 16) !== targetId) {
+        toast('Cambia manualmente a ' + activeNet.label + ' en tu wallet', 'error');
+        reset(); return;
+      }
+    }
+
+    // 4. Build provider + signer
+    const ep = new ethers.BrowserProvider(prov);
+    signer     = await ep.getSigner();
+    walletAddr = (await signer.getAddress()).toLowerCase();
+    provider   = ep;
+
+    // 5. Build contracts immediately — before gate check
+    const d = DEPLOY_MAINNET;
+    contracts.core       = new ethers.Contract(d.core,     CORE_ABI,       ep);
+    contracts.slot       = new ethers.Contract(d.slot,     SLOT_ABI,       ep);
+    contracts.rank       = new ethers.Contract(d.rank,     RANK_ABI,       ep);
+    contracts.pool       = new ethers.Contract(d.pool,     POOL_ABI,       ep);
+    contracts.enterprise = new ethers.Contract(d.treasury, ENTERPRISE_ABI, ep);
+    contracts.reward     = new ethers.Contract(d.rewards,  REWARD_ABI,     ep);
+    contracts.usdt       = new ethers.Contract(d.usdt,     USDT_ABI,       ep);
+    addrs = d;
+
+    // 6. Update UI
+    lbl.textContent = short(walletAddr);
+    pill.disabled   = false;
+    pill.classList.add('connected');
+    document.getElementById('wallet-dot').className = 'wallet-dot on';
+    toast('✅ Conectado · ' + activeNet.label, 'success');
+
+    // 7. Gate check — contracts are ready now
+    updateRefLinkUI();
+    await checkRegistrationGate();
+    // Check for pending buy from landing
+    const pendingAmt = sessionStorage.getItem('pending-buy-amt');
+    if (pendingAmt && contracts.slot) {
+      sessionStorage.removeItem('pending-buy-amt');
+      const pendingSponsor = sessionStorage.getItem('pending-buy-sponsor') || '';
+      sessionStorage.removeItem('pending-buy-sponsor');
+      const inp = document.getElementById('lp-sponsor');
+      if(inp && pendingSponsor) inp.value = pendingSponsor;
+      selectLpSlot(parseInt(pendingAmt));
+      toast('Continuando con tu compra…', 'info');
+      setTimeout(() => landingBuySlot(), 800);
+    }
+
+  } catch(e) {
+    const msg = e?.message || String(e);
+    if (e?.code === 4001 || msg.includes('rejected') || msg.includes('denied')) {
+      toast('Conexión rechazada', 'error');
+    } else {
+      toast('Error: ' + msg.slice(0, 60), 'error');
+      console.error('[connectWith]', e);
+    }
+    reset();
+  }
+}
+
+function showHelpModal(){
+  const bg=document.createElement('div');
+  bg.className='wallet-modal-bg';
+  bg.innerHTML=`<div class="help-modal">
+    <div style="font-size:28px;margin-bottom:12px;">📁</div>
+    <div style="font-size:18px;font-weight:800;margin-bottom:6px;">Archivo local detectado</div>
+    <div style="font-size:14px;color:var(--gray-500);margin-bottom:20px;">MetaMask no funciona en archivos locales. Sirve la DApp desde un servidor HTTP.</div>
+    <div style="font-size:13px;font-weight:700;color:var(--gray-700);margin-bottom:4px;">Python</div>
+    <div class="cmd-block" onclick="copyText('python -m http.server 8080')">python -m http.server 8080 <span>📋</span></div>
+    <div style="font-size:13px;font-weight:700;color:var(--gray-700);margin-top:12px;margin-bottom:4px;">Node.js</div>
+    <div class="cmd-block" onclick="copyText('npx serve .')">npx serve . <span>📋</span></div>
+    <div class="alert alert-info" style="margin-top:14px;"><span>ℹ</span><span>Sin wallet puedes usar el dashboard en modo lectura (búsqueda de cualquier dirección).</span></div>
+    <button onclick="this.closest('.wallet-modal-bg').remove()" class="btn-outline" style="width:100%;margin-top:12px;padding:10px;">Cerrar</button>
+  </div>`;
+  document.body.appendChild(bg);
+  bg.addEventListener('click',e=>{if(e.target===bg)bg.remove();});
+}
+
+// ── SEARCH ──
+document.getElementById('search-inp').addEventListener('keydown',e=>{ if(e.key==='Enter') searchUser(); });
+
+async function searchUser(){
+  const addr=(document.getElementById('search-inp').value||'').trim();
+  if(!addr||!isAddr(addr)){toast('Dirección BSC inválida','error');return;}
+  if(!contracts.core){toast('Configura la red primero','error');return;}
+  currentUser=addr;
+  await loadUserData(addr);
+}
+
+// ── USER DATA ──
+async function loadUserData(addr){
+  try{
+    const [infoRes,dcRes]=await Promise.allSettled([
+      contracts.core.userInfo(addr),
+      contracts.core.directCount(addr)
+    ]);
+    // userInfo returns: (bool exists, bool frozen, address upline, uint32 joinedAt, uint256 totalSlotVolume, uint256 totalPoints)
+    // V15 userInfo: (exists, frozen, isRoot_, upline, joinedAt, totalSlotVolume)
+    let registered=false,frozen=false,upline='',directCnt=0,totalVol=0n,joinTs=0n,isUserRoot=false;
+    if(infoRes.status==='fulfilled'){
+      const s=infoRes.value;
+      registered  = !!(s[0]||s.exists);
+      frozen      = !!(s[1]||s.frozen);
+      isUserRoot  = !!(s[2]||s.isRoot_);
+      upline      = s[3]||s.upline||'';
+      joinTs      = BigInt(s[4]||s.joinedAt||0);
+      totalVol    = s[5]||s.totalSlotVolume||0n;
+    }
+    if(dcRes.status==='fulfilled') directCnt=Number(dcRes.value);
+
+    renderUserCard(addr,{registered,frozen,upline,directCnt,totalVol,joinTs,isUserRoot});
+    if(walletAddr && addr.toLowerCase()===walletAddr.toLowerCase()) setTimeout(()=>_fillRefLink(addr), 50);
+
+    let netPts=0n,rank=0,personalVol=0n;
+    if(contracts.rank){
+      const [npR,rR,pvR]=await Promise.allSettled([
+        contracts.rank.qualifiedNetworkVolume(addr),
+        contracts.rank.userRank(addr),
+        contracts.rank.personalVolume(addr),
+      ]);
+      if(npR.status==='fulfilled') netPts=npR.value;
+      if(rR.status==='fulfilled')  rank=Number(rR.value);
+      if(pvR.status==='fulfilled') personalVol=pvR.value;
+    }
+
+    const rankLabel = rank>0 ? 'Rank '+rank : 'Sin rango';
+    const rankNext  = rank<7 ? 'Sig: Rank '+(rank+1) : 'Rango máximo';
+    document.getElementById('ov-points').textContent=fmt18s(netPts);
+    document.getElementById('ov-rank').textContent=rankLabel;
+    document.getElementById('ov-rank-sub').textContent=rankNext;
+    document.getElementById('rk-points').textContent=fmt18s(netPts);
+    document.getElementById('rk-rank').textContent=rankLabel;
+    document.getElementById('rk-rank-sub').textContent=rankNext;
+    document.getElementById('rk-vol').textContent=fmt18s(personalVol)+' USDT';
+    document.getElementById('nt-directs').textContent=directCnt;
+    document.getElementById('nt-upline').textContent=!isZero(upline)?short(upline):'—';
+
+    renderStatusBody({registered,frozen,upline,directCnt,totalVol,joinTs});
+    if(contracts.slot) loadUserSlots(addr);
+    loadRanksTab(addr);
+    if(addr.toLowerCase() === walletAddr?.toLowerCase()) loadEarningsTab();
+    loadPoolsData();
+    loadNetworkTab(addr);
+    loadEarningsTab();
+
+  }catch(e){ toast('Error al cargar usuario: '+e.message.slice(0,60),'error'); }
+}
+
+function renderUserCard(addr,d){
+  const wrap=document.getElementById('user-card-wrap');
+  const init=addr.slice(2,4).toUpperCase();
+  const exp=activeNet?activeNet.explorer:'https://bscscan.com';
+  wrap.innerHTML=`<div class="user-card">
+    <div class="uavatar">${init}</div>
+    <div class="uinfo">
+      <div class="uaddr"><span>${addr}</span><button class="copy-btn" onclick="copyText('${addr}')">📋</button><a href="${exp}/address/${addr}" target="_blank" style="color:var(--blue);font-size:11px;text-decoration:none;">↗</a></div>
+      <div class="utags">
+        ${d.registered?`<span class="badge ${d.frozen?'badge-red':'badge-blue'}">${d.frozen?'❄ Congelado':'✓ Registrado'}</span>`:'<span class="badge badge-red">✗ No registrado</span>'}
+        ${d.isUserRoot?'<span class="badge badge-amber">👑 Root</span>':''}
+        ${d.totalVol>0n?`<span class="badge badge-amber">Vol: ${fmt18s(d.totalVol)} USDT</span>`:''}
+        ${!isZero(d.upline)?`<span class="badge badge-gray">Upline: ${short(d.upline)}</span>`:''}
+      </div>
+    </div>
+    <div class="uright">
+      <div class="uright-label">Directos</div>
+      <div class="uright-val">${d.directCnt}</div>
+      <div class="uright-sub">${d.joinTs>0n?'Desde: '+new Date(Number(d.joinTs)*1000).toLocaleDateString('es-CO'):''}</div>
+    </div>
+  </div>
+  ${walletAddr && addr.toLowerCase()===walletAddr.toLowerCase() && d.registered ? `
+  <div style="margin-top:12px;margin-bottom:4px;padding:14px 16px;background:var(--blue-bg);border:1.5px solid var(--blue);border-radius:12px;">
+    <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">🔗 Tu link de referido</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input id="ov-reflink-input" readonly value="" onclick="this.select()"
+        style="flex:1;background:white;border:1px solid var(--blue);border-radius:8px;padding:8px 10px;font-size:11px;font-family:var(--mono);color:var(--gray-700);cursor:pointer;min-width:0;"/>
+      <button onclick="copyRefLink()" class="btn-primary" style="white-space:nowrap;font-size:12px;padding:8px 14px;">📋 Copiar</button>
+      <button onclick="shareRefLink()" class="btn-ghost" style="white-space:nowrap;font-size:12px;padding:8px 12px;">↗ Compartir</button>
+    </div>
+    <div style="font-size:11px;color:var(--blue);margin-top:6px;opacity:.7;">Quien use este link llegará directo a registrarse con tu wallet como upline</div>
+  </div>` : ''}
+  </div>`;
+}
+
+function _fillRefLink(addr) {
+  const inp = document.getElementById('ov-reflink-input');
+  if (!inp) return;
+  const base = window.location.origin + window.location.pathname.replace(/\/$/, '');
+  inp.value = base + '?ref=' + addr;
+}
+
+function renderStatusBody(d){
+  const el=document.getElementById('ov-status-body');
+  if(!el) return;
+  el.innerHTML=`
+    <div class="mem-row"><span class="mem-label">Estado</span><span class="mem-val" style="color:${d.registered?'var(--green)':'var(--red)'};">${d.registered?'✓ Registrado':'✗ No registrado'}</span></div>
+    ${d.frozen ? '<div class="mem-row"><span class="mem-label">⚠ Estado</span><span class="mem-val" style="color:var(--red);">❄ Cuenta congelada</span></div>' : ''}
+    <div class="mem-row"><span class="mem-label">Upline</span><span class="mem-val">${!isZero(d.upline)?short(d.upline):'—'}</span></div>
+    <div class="mem-row"><span class="mem-label">Directos</span><span class="mem-val">${d.directCnt}</span></div>
+    <div class="mem-row"><span class="mem-label">Volumen total</span><span class="mem-val" style="color:var(--blue);">${fmt18s(d.totalVol)} USDT</span></div>`;
+  const tag=document.getElementById('ov-status-tag');
+  if(tag) tag.innerHTML=`<span class="badge ${d.registered&&!d.frozen?'badge-blue':d.frozen?'badge-red':'badge-gray'}">${d.registered&&!d.frozen?'Activo':d.frozen?'Congelado':'Sin registro'}</span>`;
+}
+
+// Parse position tuple from V15 contract (12 fields)
+// positions(id) -> (user, slotLevel, slotAmount, paidOut, capMax,
+//                   openedDay, lastSyncDay, currentStreak, bestStreak,
+//                   rewardActive, completed, roiEnabled)
+function parsePosition(id, p) {
+  return {
+    id:           Number(id),
+    slotLevel:    Number(p[1]),
+    slotAmount:   p[2],
+    paidOut:      p[3],
+    capMax:       p[4],
+    openedDay:    Number(p[5]),
+    lastSyncDay:  Number(p[6]),
+    currentStreak:Number(p[7]),
+    bestStreak:   Number(p[8]),
+    rewardActive: !!p[9],
+    completed:    !!p[10],
+    roiEnabled:   !!p[11],
+  };
+}
+
+// ── V15 Activation fee table (matches activationFeeByLevel in contract) ──
+// level → fee in USDT (18 decimals as BigInt)
+const ACTIVATION_FEE_BY_LEVEL = {
+  1:  25n * BigInt(1e17),   // 2.50 USDT
+  2:  5n  * BigInt(1e18),   // 5.00 USDT
+  3:  10n * BigInt(1e18),   // 10.00 USDT
+  4:  20n * BigInt(1e18),   // 20.00 USDT
+  5:  40n * BigInt(1e18),   // 40.00 USDT
+  6:  60n * BigInt(1e18),   // 60.00 USDT
+  7:  80n * BigInt(1e18),   // 80.00 USDT
+  8:  100n * BigInt(1e18),  // 100.00 USDT
+  9:  120n * BigInt(1e18),  // 120.00 USDT
+  10: 140n * BigInt(1e18),  // 140.00 USDT
+  11: 180n * BigInt(1e18),  // 180.00 USDT
+  12: 220n * BigInt(1e18),  // 220.00 USDT
+  13: 260n * BigInt(1e18),  // 260.00 USDT
+  14: 300n * BigInt(1e18),  // 300.00 USDT
+};
+
+// Slot amount by level (10 USDT * 2^(level-1))
+function slotAmountForLevel(level) {
+  return 10n * BigInt(1e18) * (1n << BigInt(level - 1));
+}
+
+// Level from amount (local, no RPC)
+function slotLevelFromAmount(amountWei) {
+  for (let lvl = 1; lvl <= 14; lvl++) {
+    if (slotAmountForLevel(lvl) === amountWei) return lvl;
+  }
+  return 0;
+}
+
+// Total to pay = slotAmount + activationFee
+function totalToPayLocal(amountWei) {
+  const level = slotLevelFromAmount(amountWei);
+  const fee   = ACTIVATION_FEE_BY_LEVEL[level] || 0n;
+  return { total: amountWei + fee, fee, level };
+}
+
+// ── GLOBAL STATS ──
+async function loadHeroStats(){if(!contracts.slot||!contracts.core)return;try{const[u,p]=await Promise.all([contracts.core.totalUsers().catch(()=>null),contracts.slot.totalActivePrincipal().catch(()=>null)]);const uEl=document.getElementById("hero-users");const pEl=document.getElementById("hero-principal");if(uEl&&u!=null)uEl.textContent=Number(u).toLocaleString()+" usuarios";if(pEl&&p!=null)pEl.textContent=fmt18s(p)+" USDT";}catch(e){}}
+async function loadGlobalStats(){
+  if(!contracts.slot){ console.warn('[loadGlobalStats] no slot contract'); return; }
+  console.log('[loadGlobalStats] calling totalActivePrincipal...');
+  try{
+    const [total,rate,liq]=await Promise.all([
+      contracts.slot.totalActivePrincipal().catch(e=>{console.warn('[totalActivePrincipal]',e.message);return 0n;}),
+      contracts.slot.previewDynamicRateBP().catch(e=>{console.warn('[previewDynamicRateBP]',e.message);return 0n;}),
+      contracts.reward?contracts.reward.availableRewardsLiquidity().catch(e=>{console.warn('[rewardsLiq]',e.message);return 0n;}):Promise.resolve(0n),
+    ]);
+    console.log('[loadGlobalStats] total=',total,'rate=',rate,'liq=',liq);
+    document.getElementById('sl-total-principal').textContent=fmt18s(total)+' USDT';
+    document.getElementById('sl-daily-rate').textContent=(Number(rate)/100).toFixed(2)+'%';
+    /* sl-liquidity removed */
+    document.getElementById('ov-principal').textContent=fmt18s(total)+' USDT';
+    // Coverage tooltip on rate
+    const rateEl=document.getElementById('sl-daily-rate');
+    if(rateEl) rateEl.title='Tasa dinámica basada en cobertura del RewardTreasury';
+  }catch(e){ console.error('[loadGlobalStats]',e); }
+}
+
+async function loadLandingStats(){
+  if(!contracts.core||!contracts.slot) return;
+  try{
+    const [total,users]=await Promise.all([
+      contracts.slot.totalActivePrincipal().catch(()=>null),
+      contracts.core.totalUsers().catch(()=>null),
+    ]);
+    if(total) document.getElementById('stat-total-p').textContent='$'+fmt18s(total);
+    if(users) document.getElementById('stat-users').textContent=Number(users).toLocaleString();
+  }catch{}
+}
+
+// ── ALLOWED SLOTS ──
+async function loadAllowedSlots(){
+  if(!contracts.slot) return;
+  const allowed=[];
+  for(const amt of SLOT_AMOUNTS_ALL){
+    try{
+      // V15: isAllowedSlot removed — use slotLevelByAmount != 0
+      const level=await contracts.slot.slotLevelByAmount(ethers.parseUnits(amt.toString(),18));
+      if(Number(level) > 0) allowed.push(amt);
+    }catch{}
+  }
+  const html=allowed.map(a=>`<button class="chip" id="chip-${a}" onclick="selectSlot(${a})">${a.toLocaleString()} USDT</button>`).join('');
+  ['ov-slot-amounts','buy-chips'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=html||'—'; });
+}
+
+function selectSlot(amt){
+  selectedSlot=amt;
+  document.querySelectorAll('[id^="chip-"]').forEach(el=>{
+    el.className='chip'+(el.id===`chip-${amt}`?' sel':'');
+  });
+  const btn=document.getElementById('btn-buy-slot');
+  if(btn){btn.textContent=`Comprar Slot ${amt.toLocaleString()} USDT`;btn.disabled=!walletAddr;}
+}
+
+// ── USER SLOTS ──
+
+// ── Landing page scripts ──
+window.addEventListener('DOMContentLoaded', () => {
+  initLandingBuy();
+  // Load live stats if contracts available
+  const params = new URL(window.location.href).searchParams;
+  const refAddr = params.get('ref');
+  if (refAddr && /^0x[0-9a-fA-F]{40}$/.test(refAddr)) {
+    // Redirect to dashboard with ref param
+    window.location.href = '/dashboard/?ref=' + refAddr;
+  }
+});
+
+function showDapp() {
+  window.location.href = '/dashboard/';
+}
+
+function scrollToSection(sel) {
+  const el = document.querySelector(sel);
+  if(el) el.scrollIntoView({behavior:'smooth'});
+}
+
+function copyRef() {
+  const inp = document.getElementById('lp-ref-link');
+  if(inp) navigator.clipboard.writeText(inp.value).then(()=>toast('Link copiado','success'));
+}
+
+function initLandingBuy() {
+  const chips = document.getElementById('lp-slot-chips');
+  if (!chips) return;
+  const amounts = [10,20,40,80,160,320,640,1280,2560,5120,10240,20480,40960,81920];
+  chips.innerHTML = amounts.map(a => {
+    const cap = (a*2).toLocaleString();
+    return `<button class="lp-slot-btn" id="lp-chip-${a}" onclick="selectLpSlot(${a})">
+      <div class="lp-sa">$${a.toLocaleString()}</div>
+      <div class="lp-sc">Cap $${cap}</div>
+    </button>`;
+  }).join('');
+  const ref = new URL(window.location.href).searchParams.get('ref');
+  if (ref && /^0x[0-9a-fA-F]{40}$/.test(ref)) {
+    const inp = document.getElementById('lp-sponsor');
+    if(inp) inp.value = ref;
+  }
+}
+
+let lpSelectedSlot = 0;
+function selectLpSlot(amt) {
+  lpSelectedSlot = amt;
+  document.querySelectorAll('[id^="lp-chip-"]').forEach(b => {
+    const a = parseInt(b.id.replace('lp-chip-',''));
+    b.className = 'lp-slot-btn' + (a===amt?' sel':'');
+  });
+  const sumEl  = document.getElementById('lp-summary');
+  const btn    = document.getElementById('lp-buy-btn');
+  const sumAmt = document.getElementById('lp-sum-amount');
+  const sumCap = document.getElementById('lp-sum-cap');
+  const sumFee = document.getElementById('lp-sum-fee');
+  const sumTot = document.getElementById('lp-sum-total');
+  if(sumEl) sumEl.style.display='block';
+  if(sumAmt) sumAmt.textContent='$'+amt.toLocaleString()+' USDT';
+  if(sumCap) sumCap.textContent='$'+(amt*2).toLocaleString()+' USDT';
+  if(sumFee) sumFee.textContent='Ver en dashboard';
+  if(sumTot) sumTot.textContent='$'+amt.toLocaleString()+' USDT+';
+  if(btn) { btn.disabled=false; btn.textContent='Continuar al dashboard →'; }
+}
+
+function landingBuySlot() {
+  const sponsor = document.getElementById('lp-sponsor')?.value?.trim();
+  const amt     = lpSelectedSlot;
+  if(!amt){ alert('Selecciona un slot'); return; }
+  let url = '/dashboard/?slot='+amt;
+  if(sponsor && /^0x[0-9a-fA-F]{40}$/.test(sponsor)) url += '&ref='+sponsor;
+  window.location.href = url;
+}
+
+// Toast helper for landing
+function toast(msg, type) {
+  const t = document.createElement('div');
+  t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:'+(type==='success'?'#10b981':type==='error'?'#ef4444':'#3b82f6')+';color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;font-family:Arial;box-shadow:0 4px 12px rgba(0,0,0,.2);';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),3000);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "ATLASH LearnEarn",
+  "description": "ATLASH Protocol \u2014 Learn to Earn on BSC Mainnet",
+  "iconPath": "https://atlash.net/favicon.ico",
+  "networks": [
+    {
+      "chainId": 56,
+      "chainName": "BSC Mainnet"
+    }
+  ]
+}
