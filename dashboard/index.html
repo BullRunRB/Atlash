@@ -2650,7 +2650,7 @@ async function createProvider(rpcs) {
 async function confirmNetModal(){
   console.log('[confirmNetModal] starting, _pendingNetKey=', _pendingNetKey);
   try {
-    document.getElementById('net-modal').style.display='none';
+    const _nm = document.getElementById('net-modal'); if(_nm) _nm.style.display='none';
     _netKey    = 'mainnet';
     _pendingNetKey = 'mainnet';
     activeNet  = NETS['mainnet'];
@@ -7023,23 +7023,32 @@ function shareRefLink() {
 
 
 
-// ── Dashboard init (runs after DOM is ready) ──
-document.addEventListener('DOMContentLoaded', () => {
-  // Handle ?ref= and ?slot= params from landing page
-  const params = new URL(window.location.href).searchParams;
-  const ref  = params.get('ref');
-  const slot = params.get('slot');
-  if (ref  && /^0x[0-9a-fA-F]{40}$/.test(ref))  sessionStorage.setItem('pending-ref', ref);
-  if (slot && parseInt(slot) > 0) sessionStorage.setItem('pending-buy-amt', slot);
+// ── Dashboard init ──
+document.addEventListener('DOMContentLoaded', async () => {
+  // Handle ?ref= and ?slot= params
+  try {
+    const params = new URL(window.location.href).searchParams;
+    const ref  = params.get('ref');
+    const slot = params.get('slot');
+    if (ref  && /^0x[0-9a-fA-F]{40}$/.test(ref))  sessionStorage.setItem('pending-ref', ref);
+    if (slot && parseInt(slot) > 0) sessionStorage.setItem('pending-buy-amt', slot);
+  } catch(e) {}
 
-  // Boot: connect to BSC Mainnet
-  setTimeout(() => confirmNetModal(), 100);
+  // Boot: connect to BSC Mainnet — await so activeNet is set before any wallet connect
+  try {
+    await confirmNetModal();
+    console.log('[init] Mainnet ready, activeNet:', activeNet?.label);
+  } catch(e) {
+    console.error('[init] confirmNetModal failed:', e.message);
+  }
 
   // Safe App auto-detect
   if (window.self !== window.top) {
     setTimeout(async () => {
-      const ok = await tryConnectSafeApp();
-      if (ok) { showDapp(); await checkRegistrationGate(); }
+      try {
+        const ok = await tryConnectSafeApp();
+        if (ok) { showDapp(); await checkRegistrationGate(); }
+      } catch(e) { console.warn('[Safe init]', e.message); }
     }, 500);
   }
 });
