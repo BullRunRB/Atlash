@@ -2650,7 +2650,7 @@ async function createProvider(rpcs) {
 async function confirmNetModal(){
   console.log('[confirmNetModal] starting, _pendingNetKey=', _pendingNetKey);
   try {
-    document.getElementById('net-modal').style.display='none';
+    const _nm = document.getElementById('net-modal'); if(_nm) _nm.style.display='none';
     _netKey    = 'mainnet';
     _pendingNetKey = 'mainnet';
     activeNet  = NETS['mainnet'];
@@ -7024,12 +7024,17 @@ function shareRefLink() {
 
 
 // ── Admin init ──
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => confirmNetModal(), 100);
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    await confirmNetModal();
+    console.log('[admin] Mainnet ready, activeNet:', activeNet?.label);
+  } catch(e) { console.error('[admin init]', e.message); }
   if (window.self !== window.top) {
     setTimeout(async () => {
-      const ok = await tryConnectSafeApp();
-      if (ok) { showDapp(); await checkRegistrationGate(); }
+      try {
+        const ok = await tryConnectSafeApp();
+        if (ok) { showDapp(); await checkRegistrationGate(); }
+      } catch(e) { console.warn('[Safe]', e.message); }
     }, 500);
   }
 });
