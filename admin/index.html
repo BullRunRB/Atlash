@@ -2800,7 +2800,12 @@ async function connectWith(type){
 
   if(window.location.protocol==='file:'){ showHelpModal(); return; }
   if(!window.ethereum){ showHelpModal(); return; }
-  if(!activeNet){ toast('Selecciona la red primero','error'); return; }
+  // If activeNet not ready (confirmNetModal failed), retry now
+  if(!activeNet) {
+    toast('Inicializando red…','info');
+    try { await confirmNetModal(); } catch(e) { console.error('[connectWith] confirmNetModal failed:', e); }
+    if(!activeNet) { toast('No se pudo conectar a BSC. Verifica tu conexión.','error'); return; }
+  }
 
   const prov = window.ethereum;
   const lbl  = document.getElementById('wallet-label');
@@ -6799,6 +6804,7 @@ function connectWithSafe() {
 
 async function trySafeNow() {
   toast('Conectando con Safe… (puede tardar hasta 30s)','info');
+  if(!activeNet) { try { await confirmNetModal(); } catch(e) {} }
   const ok = await tryConnectSafeApp();
   if (ok) {
     await checkRegistrationGate();
@@ -7034,10 +7040,15 @@ function shareRefLink() {
 
 // ── Admin init ──
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log('[admin] Starting init…');
   try {
     await confirmNetModal();
-    console.log('[admin] Mainnet ready, activeNet:', activeNet?.label);
-  } catch(e) { console.error('[admin init]', e.message); }
+    console.log('[admin] Mainnet ready, activeNet:', activeNet?.label, 'contracts:', Object.keys(contracts).filter(k=>contracts[k]));
+  } catch(e) {
+    console.error('[admin init] confirmNetModal failed:', e.message);
+    // Non-fatal — user can still click connect and it will retry
+    console.log('[admin] Will retry on wallet connect click');
+  }
   if (window.self !== window.top) {
     setTimeout(async () => {
       try {
