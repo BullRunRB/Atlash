@@ -278,7 +278,8 @@
 
         <!-- Sub-tabs -->
         <div class="sub-tabs">
-          <button class="stab on" id="adm-core-btn"  onclick="switchAdminTab('core')">Core</button>
+          <button class="stab on" id="adm-query-btn" onclick="switchAdminTab('query')">Consulta Usuario</button>
+          <button class="stab" id="adm-core-btn"  onclick="switchAdminTab('core')">Core</button>
           <button class="stab" id="adm-slot-btn"  onclick="switchAdminTab('slot')">Slots / Rate</button>
           <button class="stab" id="adm-rank-btn"  onclick="switchAdminTab('rank')">Rangos</button>
           <button class="stab" id="adm-pool-btn"  onclick="switchAdminTab('pool')">Top Five</button>
@@ -287,6 +288,33 @@
           <button class="stab" id="adm-reg-btn"   onclick="switchAdminTab('reg')">Registro</button>
           <button class="stab" id="adm-burn-btn"  onclick="switchAdminTab('burn')">Vol. Burn</button>
           <button class="stab" id="adm-scan-btn"  onclick="switchAdminTab('scan')">Rank Scan</button>
+        </div>
+
+
+        <!-- ── USER QUERY ADMIN ── -->
+        <div id="adm-pane-query">
+          <div class="panel">
+            <div class="panel-head">
+              <div class="panel-title">🔎 Consulta administrativa de usuario</div>
+              <button class="btn-outline" onclick="admClearUserQuery()" style="padding:5px 12px;font-size:11px;">Limpiar</button>
+            </div>
+            <div class="panel-body">
+              <div class="alert alert-info">
+                <span>ℹ</span>
+                <span>Consulta la información principal del usuario directamente desde Core, SlotProgram, Ranks y Enterprise Treasury.</span>
+              </div>
+              <div class="adm-field">
+                <label class="adm-label">Wallet del usuario</label>
+                <div class="adm-row">
+                  <input class="addr-inp" id="adm-user-query-addr" placeholder="0x…"/>
+                  <button class="btn-primary" onclick="admQueryUser()">Consultar usuario</button>
+                </div>
+              </div>
+              <div id="adm-user-query-result">
+                <div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin consulta</div><div class="empty-desc">Ingresa una wallet para ver upline, línea de master, slots activos y volúmenes.</div></div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- ── CORE ADMIN ── -->
@@ -3418,7 +3446,7 @@ async function loadNetworkTab(addr) {
 // ═══════════════════════════════════════════════════════════
 
 function switchAdminTab(name) {
-  ['core','slot','rank','pool','ent','roles','reg','burn','scan'].forEach(t => {
+  ['query','core','slot','rank','pool','ent','roles','reg','burn','scan'].forEach(t => {
     const p = document.getElementById('adm-pane-'+t);
     const b = document.getElementById('adm-'+t+'-btn');
     if(p) p.style.display = t===name ? 'block' : 'none';
@@ -3438,7 +3466,179 @@ async function loadAdminTab() {
   const dayInp = document.getElementById('adm-day-id');
   if (dayInp && !dayInp.value) dayInp.value = dayId;
   // Load first sub-tab
-  switchAdminTab('core');
+  switchAdminTab('query');
+}
+
+// ── USER QUERY ADMIN ──
+function roleLabel(role) {
+  return ['NORMAL','MASTER','COMMERCIAL PARTNER','COMMERCIAL PARTNER + MASTER','ROOT'][Number(role)] || String(role ?? '—');
+}
+function statusLabel(status) {
+  return ['ACTIVE','FROZEN','SUSPENDED','TERMINATED'][Number(status)] || String(status ?? '—');
+}
+function slotBadgeList(items) {
+  if (!items || !items.length) return '<span class="badge badge-gray">Ninguno</span>';
+  return items.map(x => `<span class="badge ${x.roiEnabled ? 'badge-blue' : 'badge-purple'}">Slot ${x.level} · ${fmt18s(x.amount)} USDT · #${x.id}</span>`).join(' ');
+}
+function admClearUserQuery() {
+  const inp = document.getElementById('adm-user-query-addr');
+  const out = document.getElementById('adm-user-query-result');
+  if (inp) inp.value = '';
+  if (out) out.innerHTML = '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin consulta</div><div class="empty-desc">Ingresa una wallet para ver upline, línea de master, slots activos y volúmenes.</div></div>';
+}
+async function admQueryUser() {
+  const addr = document.getElementById('adm-user-query-addr')?.value?.trim();
+  const out = document.getElementById('adm-user-query-result');
+  if (!out) return;
+  if (!addr || !isAddr(addr)) { toast('Dirección inválida', 'error'); return; }
+  if (!contracts.core || !contracts.slot || !contracts.rank) { toast('Contratos no inicializados', 'error'); return; }
+
+  out.innerHTML = '<div class="empty"><div class="spin"></div><div class="empty-title" style="margin-top:12px;">Consultando usuario…</div></div>';
+  try {
+    const [userInfo, commercialInfo, accountStatus, directCount, personalVol, totalNetVol, qualifiedNetVol, rank, canAccumulate, highestActive, highestGrace, posIds, masterOrgVol] = await Promise.all([
+      contracts.core.userInfo(addr).catch(() => null),
+      contracts.core.userCommercialInfo(addr).catch(() => null),
+      contracts.core.accountStatusOf(addr).catch(() => null),
+      contracts.core.directCount(addr).catch(() => 0n),
+      contracts.rank.personalVolume(addr).catch(() => 0n),
+      contracts.rank.totalNetworkVolume(addr).catch(() => 0n),
+      contracts.rank.qualifiedNetworkVolume(addr).catch(() => 0n),
+      contracts.rank.userRank(addr).catch(() => 0),
+      contracts.rank.canAccumulateQualifiedVolume(addr).catch(() => false),
+      contracts.slot.highestActiveSlotLevel(addr).catch(() => 0),
+      contracts.slot.highestActiveOrGraceSlotLevel(addr).catch(() => 0),
+      contracts.slot.positionsOf(addr).catch(() => []),
+      contracts.enterprise?.masterAccumulatedOrganizationVolume ? contracts.enterprise.masterAccumulatedOrganizationVolume(addr).catch(() => 0n) : Promise.resolve(0n),
+    ]);
+
+    if (!userInfo || !userInfo[0]) {
+      out.innerHTML = `<div class="alert alert-warn"><span>⚠</span><span>La wallet <strong>${short(addr)}</strong> no aparece registrada en Core.</span></div>`;
+      return;
+    }
+
+    const slotsCommercial = [];
+    const slotsPurchased = [];
+    const slotsCompleted = [];
+    const positionRows = [];
+    for (const rawId of Array.from(posIds || [])) {
+      const id = Number(rawId);
+      try {
+        const p = await contracts.slot.positions(rawId);
+        const item = {
+          id,
+          user: p.user ?? p[0],
+          level: Number(p.slotLevel ?? p[1]),
+          amount: p.slotAmount ?? p[2],
+          paidOut: p.paidOut ?? p[3],
+          capMax: p.capMax ?? p[4],
+          rewardActive: Boolean(p.rewardActive ?? p[9]),
+          completed: Boolean(p.completed ?? p[10]),
+          roiEnabled: Boolean(p.roiEnabled ?? p[11]),
+        };
+        if (item.rewardActive && !item.completed && item.roiEnabled) slotsPurchased.push(item);
+        else if (item.rewardActive && !item.completed && !item.roiEnabled) slotsCommercial.push(item);
+        else if (item.completed) slotsCompleted.push(item);
+        positionRows.push(item);
+      } catch (_) {}
+    }
+
+    const exists = Boolean(userInfo[0]);
+    const frozen = Boolean(userInfo[1]);
+    const isRootUser = Boolean(userInfo[2]);
+    const upline = userInfo[3];
+    const joinedAt = Number(userInfo[4] || 0n);
+    const totalSlotVolume = userInfo[5] || 0n;
+    const role = commercialInfo ? Number(commercialInfo[0]) : 0;
+    const commercialPartner = commercialInfo ? commercialInfo[1] : ethers.ZeroAddress;
+    const master = commercialInfo ? commercialInfo[2] : ethers.ZeroAddress;
+    const reason = commercialInfo ? commercialInfo[3] : '';
+    const orgVolumeToShow = totalNetVol || 0n;
+
+    out.innerHTML = `
+      <div class="user-card" style="align-items:flex-start;">
+        <div class="uavatar">${isRootUser ? 'RT' : 'US'}</div>
+        <div class="uinfo">
+          <div class="uaddr">${addr}<button class="copy-btn" onclick="copyText('${addr}')">Copiar</button></div>
+          <div class="utags">
+            <span class="badge ${frozen ? 'badge-red' : 'badge-green'}">${statusLabel(accountStatus)}</span>
+            <span class="badge badge-blue">${roleLabel(role)}</span>
+            ${isRootUser ? '<span class="badge badge-purple">ROOT</span>' : ''}
+            <span class="badge badge-gray">Rank ${Number(rank)}</span>
+          </div>
+        </div>
+        <div class="uright">
+          <div class="uright-label">Registro</div>
+          <div class="uright-val">${joinedAt ? new Date(joinedAt * 1000).toLocaleDateString('es-CO') : '—'}</div>
+          <div class="uright-sub">Directos: ${Number(directCount).toLocaleString('es-CO')}</div>
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="kpi"><div class="kpi-label">Volumen total usuario</div><div class="kpi-value blue">${fmt18s(totalSlotVolume)}</div><div class="kpi-sub">Core totalSlotVolume · USDT</div></div>
+        <div class="kpi"><div class="kpi-label">Volumen organización</div><div class="kpi-value green">${fmt18s(orgVolumeToShow)}</div><div class="kpi-sub">Ranks totalNetworkVolume · USDT</div></div>
+        <div class="kpi"><div class="kpi-label">Volumen calificable</div><div class="kpi-value purple">${fmt18s(qualifiedNetVol)}</div><div class="kpi-sub">Acumula: ${canAccumulate ? 'Sí' : 'No'}</div></div>
+      </div>
+
+      <div class="g2">
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">🧬 Línea comercial</div></div>
+          <div class="panel-body">
+            <div class="mem-row"><span class="mem-label">Usuario</span><span class="mem-val">${short(addr)}</span></div>
+            <div class="mem-row"><span class="mem-label">Upline</span><span class="mem-val">${short(upline)} ${upline && upline !== ethers.ZeroAddress ? `<button class="copy-btn" onclick="copyText('${upline}')">Copiar</button>` : ''}</span></div>
+            <div class="mem-row"><span class="mem-label">Commercial Partner</span><span class="mem-val">${short(commercialPartner)} ${commercialPartner && commercialPartner !== ethers.ZeroAddress ? `<button class="copy-btn" onclick="copyText('${commercialPartner}')">Copiar</button>` : ''}</span></div>
+            <div class="mem-row"><span class="mem-label">Línea de Master</span><span class="mem-val">${short(master)} ${master && master !== ethers.ZeroAddress ? `<button class="copy-btn" onclick="copyText('${master}')">Copiar</button>` : ''}</span></div>
+            <div class="mem-row"><span class="mem-label">Razón / nota rol</span><span class="mem-val" style="white-space:normal;text-align:right;">${reason || '—'}</span></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">🎯 Slots activos</div></div>
+          <div class="panel-body">
+            <div class="mem-row"><span class="mem-label">Slots activos comercialmente</span><span class="mem-val">${slotsCommercial.length}</span></div>
+            <div style="margin:8px 0 14px;display:flex;gap:6px;flex-wrap:wrap;">${slotBadgeList(slotsCommercial)}</div>
+            <div class="mem-row"><span class="mem-label">Slots activos comprados</span><span class="mem-val">${slotsPurchased.length}</span></div>
+            <div style="margin:8px 0 14px;display:flex;gap:6px;flex-wrap:wrap;">${slotBadgeList(slotsPurchased)}</div>
+            <div class="mem-row"><span class="mem-label">Highest active slot</span><span class="mem-val">${Number(highestActive)}</span></div>
+            <div class="mem-row"><span class="mem-label">Highest active/grace</span><span class="mem-val">${Number(highestGrace)}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">📚 Detalle de posiciones</div></div>
+        <div class="panel-body">
+          ${positionRows.length ? `
+            <table class="tbl">
+              <thead><tr><th>ID</th><th>Slot</th><th>Monto</th><th>Pagado</th><th>Cap</th><th>Tipo</th><th>Estado</th></tr></thead>
+              <tbody>
+                ${positionRows.map(x => `
+                  <tr>
+                    <td>#${x.id}</td>
+                    <td>${x.level}</td>
+                    <td>${fmt18s(x.amount)}</td>
+                    <td>${fmt18s(x.paidOut)}</td>
+                    <td>${fmt18s(x.capMax)}</td>
+                    <td>${x.roiEnabled ? 'Comprado / ROI' : 'Comercial'}</td>
+                    <td>${x.completed ? 'Completado' : x.rewardActive ? 'Activo' : 'Inactivo'}</td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>` : '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin posiciones</div></div>'}
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">📈 Volúmenes adicionales</div></div>
+        <div class="panel-body">
+          <div class="g3" style="margin:0;">
+            <div class="mem-row"><span class="mem-label">Personal Volume</span><span class="mem-val">${fmt18s(personalVol)}</span></div>
+            <div class="mem-row"><span class="mem-label">Master Org. Volume</span><span class="mem-val">${fmt18s(masterOrgVol)}</span></div>
+            <div class="mem-row"><span class="mem-label">Posiciones totales</span><span class="mem-val">${positionRows.length}</span></div>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    out.innerHTML = `<div class="alert alert-warn"><span>⚠</span><span>Error consultando usuario: ${e.message || e}</span></div>`;
+  }
 }
 
 // ── CORE ADMIN ──
