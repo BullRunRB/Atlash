@@ -471,8 +471,8 @@ function showLanding(){
   document.getElementById('landing-nav').style.display='';
   document.getElementById('dapp-tabs-nav').style.display='none';
   document.getElementById('btn-enter-dapp').style.display='';
-  document.getElementById('wallet-pill').style.display='none';
-  document.getElementById('nav-net-pill').style.display='none';
+  { const el=document.getElementById('wallet-pill'); if(el) el.style.display='none'; }
+  { const el=document.getElementById('nav-net-pill'); if(el) el.style.display='none'; }
   try { updateSidebarState(); } catch(e) {}
 }
 
@@ -654,6 +654,61 @@ function switchNetTab(tab){
   });
 }
 
+
+
+// ── WALLET SAFETY HELPERS (ATLASH full wallet fix) ──
+let _walletListenersBound = false;
+function _walletEls(){
+  return {
+    label: document.getElementById('wallet-label'),
+    pill:  document.getElementById('wallet-pill'),
+    dot:   document.getElementById('wallet-dot'),
+  };
+}
+function _setWalletButton(text, connected=false, disabled=false){
+  const el = _walletEls();
+  if(el.label) el.label.textContent = text || 'Conectar wallet';
+  if(el.pill){
+    el.pill.disabled = !!disabled;
+    el.pill.classList.toggle('connected', !!connected);
+  }
+  if(el.dot) el.dot.className = connected ? 'wallet-dot on' : 'wallet-dot';
+}
+function _isMobile(){ return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || ''); }
+function _currentDappUrl(){ return window.location.href.replace(/^https?:\/\//,''); }
+function openWalletInApp(type){
+  const fullUrl = window.location.href;
+  if(type === 'metamask') window.location.href = 'https://metamask.app.link/dapp/' + _currentDappUrl();
+  else if(type === 'trust') window.location.href = 'https://link.trustwallet.com/open_url?coin_id=20000714&url=' + encodeURIComponent(fullUrl);
+  else if(type === 'safepal') window.location.href = 'safepalwallet://wc?uri=' + encodeURIComponent(fullUrl);
+  else showHelpModal(type);
+}
+function _bindWalletEvents(prov){
+  if(!prov || _walletListenersBound) return;
+  _walletListenersBound = true;
+  try {
+    prov.on?.('accountsChanged', async (accounts) => {
+      if(!accounts || !accounts.length){
+        walletAddr = null; signer = null;
+        _setWalletButton('Conectar wallet', false, false);
+        toast('Wallet desconectada', 'info');
+        try { showDappGate('gate'); } catch(e) {}
+        return;
+      }
+      walletAddr = accounts[0].toLowerCase();
+      _setWalletButton(short(walletAddr), true, false);
+      toast('Cuenta actualizada', 'info');
+      try { await checkRegistrationGate(); } catch(e) {}
+    });
+    prov.on?.('chainChanged', () => window.location.reload());
+    prov.on?.('disconnect', () => {
+      walletAddr = null; signer = null;
+      _setWalletButton('Conectar wallet', false, false);
+      toast('Wallet desconectada', 'info');
+    });
+  } catch(e) { console.warn('[wallet events]', e.message); }
+}
+
 // ── WALLET CONNECTION ──
 function openWalletModal(){
   if(walletAddr){ disconnectWallet(); return; }
@@ -690,11 +745,9 @@ function openWalletModal(){
 
 function disconnectWallet(){
   walletAddr=null; signer=null;
-  document.getElementById('wallet-label').textContent='Conectar wallet';
-  document.getElementById('wallet-dot').className='wallet-dot';
-  document.getElementById('wallet-pill').classList.remove('connected');
+  _setWalletButton('Conectar wallet', false, false);
   toast('Wallet desconectada','info');
-  showDappGate('gate');
+  try { showDappGate('gate'); } catch(e) {}
   try { updateSidebarState(); closeSidebar(); } catch(e) {}
 }
 
@@ -703,21 +756,15 @@ async function connectWith(type){
   document.querySelectorAll('.wallet-modal-bg').forEach(m=>m.remove());
 
   if(window.location.protocol==='file:'){ showHelpModal(); return; }
-  if(!window.ethereum){ showHelpModal(); return; }
+  if(!window.ethereum){ showHelpModal(type); return; }
   if(!activeNet){ toast('Selecciona la red primero','error'); return; }
 
   const prov = window.ethereum;
-  const lbl  = document.getElementById('wallet-label');
-  const pill = document.getElementById('wallet-pill');
 
   // helper to reset button state on any failure
-  const reset = (msg) => {
-    lbl.textContent = msg || 'Conectar wallet';
-    pill.disabled = false;
-  };
+  const reset = (msg) => _setWalletButton(msg || 'Conectar wallet', false, false);
 
-  lbl.textContent = 'Conectando…';
-  pill.disabled = true;
+  _setWalletButton('Conectando…', false, true);
 
   try {
     // 1. Request accounts — opens MetaMask/Trust/SafePal popup
@@ -784,10 +831,8 @@ async function connectWith(type){
     addrs = d;
 
     // 6. Update UI
-    lbl.textContent = short(walletAddr);
-    pill.disabled   = false;
-    pill.classList.add('connected');
-    document.getElementById('wallet-dot').className = 'wallet-dot on';
+    _setWalletButton(short(walletAddr), true, false);
+    _bindWalletEvents(prov);
     toast('✅ Conectado · ' + activeNet.label, 'success');
 
     // 7. Gate check — contracts are ready now
@@ -818,18 +863,32 @@ async function connectWith(type){
   }
 }
 
-function showHelpModal(){
+function showHelpModal(type='metamask'){
+  const isFile = window.location.protocol === 'file:';
+  const mobile = _isMobile();
+  const title = isFile ? 'Servidor requerido' : 'Wallet no detectada';
+  const msg = isFile
+    ? 'MetaMask/Trust no funcionan abriendo el archivo local. Publica la DApp por HTTPS o sírvela con HTTP local.'
+    : (mobile
+      ? 'En móvil, abre ATLASH desde el navegador interno de MetaMask o Trust Wallet.'
+      : 'Instala o desbloquea MetaMask/Trust Wallet y vuelve a intentar.' );
   const bg=document.createElement('div');
   bg.className='wallet-modal-bg';
   bg.innerHTML=`<div class="help-modal">
-    <div style="font-size:28px;margin-bottom:12px;">📁</div>
-    <div style="font-size:18px;font-weight:800;margin-bottom:6px;">Archivo local detectado</div>
-    <div style="font-size:14px;color:var(--gray-500);margin-bottom:20px;">MetaMask no funciona en archivos locales. Sirve la DApp desde un servidor HTTP.</div>
-    <div style="font-size:13px;font-weight:700;color:var(--gray-700);margin-bottom:4px;">Python</div>
-    <div class="cmd-block" onclick="copyText('python -m http.server 8080')">python -m http.server 8080 <span>📋</span></div>
-    <div style="font-size:13px;font-weight:700;color:var(--gray-700);margin-top:12px;margin-bottom:4px;">Node.js</div>
-    <div class="cmd-block" onclick="copyText('npx serve .')">npx serve . <span>📋</span></div>
-    <div class="alert alert-info" style="margin-top:14px;"><span>ℹ</span><span>Sin wallet puedes usar el dashboard en modo lectura (búsqueda de cualquier dirección).</span></div>
+    <div style="font-size:28px;margin-bottom:12px;">🔐</div>
+    <div style="font-size:18px;font-weight:800;margin-bottom:6px;">${title}</div>
+    <div style="font-size:14px;color:var(--gray-500);margin-bottom:16px;">${msg}</div>
+    ${mobile && !isFile ? `
+      <button onclick="openWalletInApp('metamask')" class="btn-primary" style="width:100%;margin-bottom:8px;padding:12px;">Abrir en MetaMask</button>
+      <button onclick="openWalletInApp('trust')" class="btn-outline" style="width:100%;margin-bottom:8px;padding:12px;">Abrir en Trust Wallet</button>
+    ` : ''}
+    ${isFile ? `
+      <div style="font-size:13px;font-weight:700;color:var(--gray-700);margin-bottom:4px;">Python</div>
+      <div class="cmd-block" onclick="copyText('python -m http.server 8080')">python -m http.server 8080 <span>📋</span></div>
+      <div style="font-size:13px;font-weight:700;color:var(--gray-700);margin-top:12px;margin-bottom:4px;">Node.js</div>
+      <div class="cmd-block" onclick="copyText('npx serve .')">npx serve . <span>📋</span></div>
+    ` : ''}
+    <div class="alert alert-info" style="margin-top:14px;"><span>ℹ</span><span>La DApp no puede desbloquear una wallet por seguridad. El usuario debe aprobar la conexión dentro de su wallet.</span></div>
     <button onclick="this.closest('.wallet-modal-bg').remove()" class="btn-outline" style="width:100%;margin-top:12px;padding:10px;">Cerrar</button>
   </div>`;
   document.body.appendChild(bg);
@@ -837,7 +896,7 @@ function showHelpModal(){
 }
 
 // ── SEARCH ──
-document.getElementById('search-inp').addEventListener('keydown',e=>{ if(e.key==='Enter') searchUser(); });
+{ const el=document.getElementById('search-inp'); if(el) el.addEventListener('keydown',e=>{ if(e.key==='Enter') searchUser(); }); }
 
 async function searchUser(){
   const addr=(document.getElementById('search-inp').value||'').trim();
