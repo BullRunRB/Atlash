@@ -6,12 +6,14 @@
   <script>
     // GitHub Pages 404 → SPA redirect
     const path = window.location.pathname;
-    if (path.startsWith('/dashboard')) {
-      window.location.replace('/dashboard/');
-    } else if (path.startsWith('/admin')) {
-      window.location.replace('/admin/');
+    const parts = path.split('/').filter(Boolean);
+    const repo = parts.length && !['dashboard','admin'].includes(parts[0]) ? '/' + parts[0] : '';
+    if (path.includes('/dashboard')) {
+      window.location.replace(repo + '/dashboard/');
+    } else if (path.includes('/admin')) {
+      window.location.replace(repo + '/admin/');
     } else {
-      window.location.replace('/');
+      window.location.replace(repo + '/');
     }
   </script>
 </head>
