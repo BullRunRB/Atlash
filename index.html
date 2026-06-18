@@ -6,7 +6,7 @@
   <meta name="safe-app-name" content="ATLASH LearnEarn"/>
   <meta name="safe-app-description" content="ATLASH Protocol — Learn to Earn on BSC Mainnet"/>
   <meta name="safe-app-chain-ids" content="56"/>
-  <link rel="icon" href="/favicon.ico"/>
+  <link rel="icon" href="./favicon.ico"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
   <script>if(typeof process==="undefined")window.process={env:{},version:"",browser:true,nextTick:function(fn){setTimeout(fn,0);}};</script>
   <title>ATLASH — LearnEarn Protocol</title>
@@ -920,6 +920,16 @@ footer .brand-mark{background:var(--blue);}
 </style>
 </head>
 <body>
+<!-- Wallet DOM fallback: required by shared wallet JS in admin/dashboard -->
+<button id="wallet-pill" class="wallet-pill" type="button" onclick="openWalletModal()" hidden>
+  <span id="wallet-dot" class="wallet-dot"></span>
+  <span id="wallet-label">Conectar wallet</span>
+</button>
+<div id="nav-net-pill" class="net-pill-sm" hidden>
+  <span id="nav-net-pulse" class="npulse"></span>
+  <span id="nav-net-label">BSC Mainnet</span>
+</div>
+
 <!-- ═══════ LANDING PAGE ═══════ -->
 <div id="landing">
 
@@ -1698,7 +1708,7 @@ function scrollToSection(selector){
 
 // Scroll effect on topbar
 window.addEventListener('scroll',()=>{
-  document.getElementById('topbar').classList.toggle('scrolled',window.scrollY>20);
+  const _tb=document.getElementById('topbar'); if(_tb) _tb.classList.toggle('scrolled',window.scrollY>20);
 });
 
 // ── NET MODAL ──
@@ -1873,9 +1883,9 @@ function openWalletModal(){
 
 function disconnectWallet(){
   walletAddr=null; signer=null;
-  document.getElementById('wallet-label').textContent='Conectar wallet';
-  document.getElementById('wallet-dot').className='wallet-dot';
-  document.getElementById('wallet-pill').classList.remove('connected');
+  const _wl=document.getElementById('wallet-label'); if(_wl) _wl.textContent='Conectar wallet';
+  const _wd=document.getElementById('wallet-dot'); if(_wd) _wd.className='wallet-dot';
+  const _wp=document.getElementById('wallet-pill'); if(_wp) _wp.classList.remove('connected');
   toast('Wallet desconectada','info');
   showDappGate('gate');
   try { updateSidebarState(); closeSidebar(); } catch(e) {}
@@ -1895,12 +1905,12 @@ async function connectWith(type){
 
   // helper to reset button state on any failure
   const reset = (msg) => {
-    lbl.textContent = msg || 'Conectar wallet';
-    pill.disabled = false;
+    if (lbl) lbl.textContent = msg || 'Conectar wallet';
+    if (pill) pill.disabled = false;
   };
 
-  lbl.textContent = 'Conectando…';
-  pill.disabled = true;
+  if (lbl) lbl.textContent = 'Conectando…';
+  if (pill) pill.disabled = true;
 
   try {
     // 1. Request accounts — opens MetaMask/Trust/SafePal popup
@@ -1967,10 +1977,9 @@ async function connectWith(type){
     addrs = d;
 
     // 6. Update UI
-    lbl.textContent = short(walletAddr);
-    pill.disabled   = false;
-    pill.classList.add('connected');
-    document.getElementById('wallet-dot').className = 'wallet-dot on';
+    if (lbl) lbl.textContent = short(walletAddr);
+    if (pill) { pill.disabled = false; pill.classList.add('connected'); }
+    const _wd2=document.getElementById('wallet-dot'); if(_wd2) _wd2.className = 'wallet-dot on';
     toast('✅ Conectado · ' + activeNet.label, 'success');
 
     // 7. Gate check — contracts are ready now
@@ -2272,12 +2281,12 @@ window.addEventListener('DOMContentLoaded', () => {
   const refAddr = params.get('ref');
   if (refAddr && /^0x[0-9a-fA-F]{40}$/.test(refAddr)) {
     // Redirect to dashboard with ref param
-    window.location.href = '/dashboard/?ref=' + refAddr;
+    window.location.href = './dashboard/?ref=' + refAddr;
   }
 });
 
 function showDapp() {
-  window.location.href = '/dashboard/';
+  window.location.href = './dashboard/';
 }
 
 function scrollToSection(sel) {
@@ -2333,7 +2342,7 @@ function landingBuySlot() {
   const sponsor = document.getElementById('lp-sponsor')?.value?.trim();
   const amt     = lpSelectedSlot;
   if(!amt){ alert('Selecciona un slot'); return; }
-  let url = '/dashboard/?slot='+amt;
+  let url = './dashboard/?slot='+amt;
   if(sponsor && /^0x[0-9a-fA-F]{40}$/.test(sponsor)) url += '&ref='+sponsor;
   window.location.href = url;
 }
