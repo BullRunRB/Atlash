@@ -2777,9 +2777,12 @@ function openWalletModal(){
 
 function disconnectWallet(){
   walletAddr=null; signer=null;
-  document.getElementById('wallet-label').textContent='Conectar wallet';
-  document.getElementById('wallet-dot').className='wallet-dot';
-  document.getElementById('wallet-pill').classList.remove('connected');
+  const lbl=document.getElementById('wallet-label');
+  const dot=document.getElementById('wallet-dot');
+  const pill=document.getElementById('wallet-pill');
+  if(lbl) lbl.textContent='Conectar wallet';
+  if(dot) dot.className='wallet-dot';
+  if(pill) pill.classList.remove('connected');
   toast('Wallet desconectada','info');
   showDappGate('gate');
   try { updateSidebarState(); closeSidebar(); } catch(e) {}
@@ -2800,15 +2803,16 @@ async function connectWith(type){
   const prov = window.ethereum;
   const lbl  = document.getElementById('wallet-label');
   const pill = document.getElementById('wallet-pill');
+  const dot  = document.getElementById('wallet-dot');
 
   // helper to reset button state on any failure
   const reset = (msg) => {
-    lbl.textContent = msg || 'Conectar wallet';
-    pill.disabled = false;
+    if(lbl) lbl.textContent = msg || 'Conectar wallet';
+    if(pill) pill.disabled = false;
   };
 
-  lbl.textContent = 'Conectando…';
-  pill.disabled = true;
+  if(lbl) lbl.textContent = 'Conectando…';
+  if(pill) pill.disabled = true;
 
   try {
     // 1. Request accounts — opens MetaMask/Trust/SafePal popup
@@ -2875,10 +2879,12 @@ async function connectWith(type){
     addrs = d;
 
     // 6. Update UI
-    lbl.textContent = short(walletAddr);
-    pill.disabled   = false;
-    pill.classList.add('connected');
-    document.getElementById('wallet-dot').className = 'wallet-dot on';
+    if(lbl) lbl.textContent = short(walletAddr);
+    if(pill) {
+      pill.disabled = false;
+      pill.classList.add('connected');
+    }
+    if(dot) dot.className = 'wallet-dot on';
     toast('✅ Conectado · ' + activeNet.label, 'success');
 
     // 7. Gate check — contracts are ready now
