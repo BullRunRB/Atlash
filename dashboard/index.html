@@ -931,7 +931,7 @@ footer .brand-mark{background:var(--blue);}
 body{background:radial-gradient(circle at top left, rgba(59,130,246,.10), transparent 34%), var(--gray-50);}
 #dapp{display:block!important;}
 .dapp-wrap{padding-top:124px;background:transparent;}
-.atlash-logo-img{height:48px;width:auto;display:block;object-fit:contain;}
+.atlash-logo-img{height:34px;width:auto;display:block;object-fit:contain;}
 .user-shell-topbar{position:fixed;top:0;left:0;right:0;z-index:500;height:68px;background:rgba(255,255,255,.88);backdrop-filter:blur(18px);border-bottom:1px solid rgba(226,232,240,.9);display:flex;align-items:center;justify-content:space-between;padding:0 26px;box-shadow:0 8px 30px rgba(15,23,42,.04);}
 .user-shell-brand{display:flex;align-items:center;gap:12px;min-width:0;}
 .user-shell-badge{font-size:10px;font-family:var(--mono);letter-spacing:.8px;text-transform:uppercase;color:var(--blue);background:var(--blue-bg);border:1px solid var(--blue-line);border-radius:999px;padding:3px 9px;white-space:nowrap;}
@@ -1077,6 +1077,30 @@ body.atlash-nav-collapsed .si-icon{margin:0!important;}
 }
 @media(min-width:901px){.mob-menu-btn.user-mobile-menu{display:none!important;}}
 
+
+
+/* ATLASH ajuste: navegación únicamente desde sidebar */
+body.atlash-session-on .user-shell-topbar{display:none!important;}
+body.atlash-session-on .dapp-wrap{padding-top:24px!important;padding-left:var(--atlash-sidebar-w)!important;}
+body.atlash-nav-collapsed.atlash-session-on .dapp-wrap{padding-left:var(--atlash-sidebar-collapsed)!important;}
+
+/* Botón flotante para abrir el sidebar en celular */
+.mobile-floating-menu-btn{display:none;position:fixed;top:14px;left:14px;z-index:9100;width:44px;height:44px;border:none;border-radius:14px;background:linear-gradient(135deg,var(--blue),var(--blue-mid));color:#fff;font-size:22px;font-weight:800;box-shadow:0 14px 34px rgba(37,99,235,.28);align-items:center;justify-content:center;cursor:pointer;}
+body:not(.atlash-session-on) .mobile-floating-menu-btn{display:none!important;}
+
+/* Sidebar colapsado: mantener logo visible */
+body.atlash-nav-collapsed.atlash-session-on .sidebar-head{height:96px!important;flex-direction:column!important;justify-content:center!important;gap:8px!important;padding:10px 6px!important;}
+body.atlash-nav-collapsed.atlash-session-on .sidebar-brand{display:flex!important;justify-content:center!important;width:100%!important;overflow:visible!important;}
+body.atlash-nav-collapsed.atlash-session-on .sidebar-logo{width:46px!important;max-width:46px!important;height:auto!important;}
+body.atlash-nav-collapsed.atlash-session-on .sidebar-collapse-btn{width:28px!important;height:28px!important;font-size:13px!important;}
+
+@media(max-width:900px){
+  body.atlash-session-on .dapp-wrap{padding-left:0!important;padding-top:18px!important;}
+  body.atlash-nav-collapsed.atlash-session-on .dapp-wrap{padding-left:0!important;}
+  body.atlash-session-on .mobile-floating-menu-btn{display:flex!important;}
+  body.atlash-session-on #sidebar.open ~ .mobile-floating-menu-btn{display:none!important;}
+}
+
 </style>
 </head>
 <body>
@@ -1100,6 +1124,7 @@ body.atlash-nav-collapsed .si-icon{margin:0!important;}
     </button>
   </div>
 </header>
+<button id="mobile-floating-menu-btn" class="mobile-floating-menu-btn" type="button" onclick="openSidebar()" aria-label="Abrir menú">☰</button>
 <nav id="dapp-tabs-nav" class="dapp-tabs">
   <button id="nav-collapse-btn" class="nav-collapse-btn" type="button" onclick="toggleDashboardNav()" title="Contraer menú" aria-label="Contraer menú" aria-expanded="true">☰</button>
   <button class="dtab on" id="tab-overview-btn" data-tab="overview" onclick="goTab('overview')">Inicio</button>
@@ -4127,23 +4152,27 @@ function toggleDashboardNav(){
   document.body.classList.toggle('atlash-nav-collapsed');
   const collapsed = document.body.classList.contains('atlash-nav-collapsed');
   try{ localStorage.setItem('atlash-nav-collapsed', collapsed ? '1' : '0'); }catch(e){}
-  const btn = document.getElementById('nav-collapse-btn');
-  if(btn){
-    btn.title = collapsed ? 'Expandir menú' : 'Contraer menú';
-    btn.setAttribute('aria-label', btn.title);
-    btn.setAttribute('aria-expanded', String(!collapsed));
-  }
+  ['nav-collapse-btn','sidebar-collapse-btn'].forEach((id)=>{
+    const btn = document.getElementById(id);
+    if(btn){
+      btn.title = collapsed ? 'Expandir menú' : 'Contraer menú';
+      btn.setAttribute('aria-label', btn.title);
+      btn.setAttribute('aria-expanded', String(!collapsed));
+    }
+  });
 }
 function restoreDashboardNavState(){
   let collapsed = false;
   try{ collapsed = localStorage.getItem('atlash-nav-collapsed') === '1'; }catch(e){}
   document.body.classList.toggle('atlash-nav-collapsed', collapsed);
-  const btn = document.getElementById('nav-collapse-btn');
-  if(btn){
-    btn.title = collapsed ? 'Expandir menú' : 'Contraer menú';
-    btn.setAttribute('aria-label', btn.title);
-    btn.setAttribute('aria-expanded', String(!collapsed));
-  }
+  ['nav-collapse-btn','sidebar-collapse-btn'].forEach((id)=>{
+    const btn = document.getElementById(id);
+    if(btn){
+      btn.title = collapsed ? 'Expandir menú' : 'Contraer menú';
+      btn.setAttribute('aria-label', btn.title);
+      btn.setAttribute('aria-expanded', String(!collapsed));
+    }
+  });
 }
 function openSidebar() {
   const sb = document.getElementById('sidebar');
