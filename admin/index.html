@@ -3600,7 +3600,7 @@ const networkState = {
 
 function _netSet(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
 function _netIsAddr(a){ return /^0x[0-9a-fA-F]{40}$/.test(String(a||'')); }
-function _netKey(a){ return String(a||'').toLowerCase(); }
+function _netAddrKey(a){ return String(a||'').toLowerCase(); }
 function _netBatchSize(id, fallback){
   const n = parseInt(document.getElementById(id)?.value || fallback, 10);
   return Number.isFinite(n) && n > 0 ? Math.min(n, 1000) : fallback;
@@ -3657,7 +3657,7 @@ async function networkLoadNextBatch() {
     const idxs = [];
     for (let i = start; i < end; i++) idxs.push(i);
     const addrsBatch = await Promise.all(idxs.map(i => contracts.core.userAt(i).catch(()=>NETWORK_ZERO)));
-    const clean = addrsBatch.filter(_netIsAddr).filter(a => _netKey(a) !== NETWORK_ZERO);
+    const clean = addrsBatch.filter(_netIsAddr).filter(a => _netAddrKey(a) !== NETWORK_ZERO);
 
     const infoBatch = await Promise.all(clean.map(a => contracts.core.userInfo(a).catch(()=>null)));
     let personalBatch = [], totalNetBatch = [], qualBatch = [];
@@ -3670,7 +3670,7 @@ async function networkLoadNextBatch() {
     }
 
     clean.forEach((a, idx) => {
-      const k = _netKey(a);
+      const k = _netAddrKey(a);
       if (!networkState.upline[k]) networkState.users.push(a);
       const inf = infoBatch[idx];
       let up = NETWORK_ZERO;
@@ -3712,18 +3712,18 @@ async function networkLoadAllBatches() {
 }
 
 function networkComputeLevels() {
-  const rootKey = _netKey(networkState.root || NETWORK_ZERO);
+  const rootKey = _netAddrKey(networkState.root || NETWORK_ZERO);
   const memo = {};
   const visiting = new Set();
   function levelOf(addr) {
-    const k = _netKey(addr);
+    const k = _netAddrKey(addr);
     if (!k || k === NETWORK_ZERO) return null;
     if (k === rootKey) return 0;
     if (memo[k] !== undefined) return memo[k];
     if (visiting.has(k)) return null;
     visiting.add(k);
     const up = networkState.upline[k];
-    if (!up || _netKey(up) === NETWORK_ZERO) { visiting.delete(k); return null; }
+    if (!up || _netAddrKey(up) === NETWORK_ZERO) { visiting.delete(k); return null; }
     const ul = levelOf(up);
     visiting.delete(k);
     if (ul === null || ul === undefined) return null;
@@ -3735,7 +3735,7 @@ function networkComputeLevels() {
   let maxDepth = 0, orphans = 0;
   let distributedEstimate = 0n;
   for (const a of networkState.users) {
-    const k = _netKey(a);
+    const k = _netAddrKey(a);
     const lv = levelOf(a);
     distributedEstimate += BigInt(networkState.totalNet[k] || 0n);
     if (lv === null || lv === undefined) { orphans++; continue; }
