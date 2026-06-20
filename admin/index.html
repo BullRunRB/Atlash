@@ -113,6 +113,7 @@
         <button id="sb-dashboard" class="admin-tab-btn sidebar-item on" onclick="goTab('dashboard')"><span class="si-icon">📊</span><span class="si-label">Dashboard</span></button>
         <button id="sb-contracts" class="admin-tab-btn sidebar-item" onclick="goTab('contracts')"><span class="si-icon">📄</span><span class="si-label">Contratos</span></button>
         <button id="sb-treasury" class="admin-tab-btn sidebar-item" onclick="goTab('treasury')"><span class="si-icon">🏦</span><span class="si-label">Tesorería</span></button>
+        <button id="sb-network" class="admin-tab-btn sidebar-item" onclick="goTab('network')"><span class="si-icon">🌐</span><span class="si-label">Red</span></button>
         <button id="sb-admin" class="admin-tab-btn sidebar-item" onclick="goTab('admin')"><span class="si-icon">⚙️</span><span class="si-label">Admin</span></button>
       </nav>
       <div class="admin-side-footer"><a href="../dashboard/">Salir al Dashboard</a></div>
@@ -122,6 +123,7 @@
         <button id="tab-dashboard-btn" class="dtab on" data-tab="dashboard" onclick="goTab('dashboard')">Dashboard</button>
         <button id="tab-contracts-btn" class="dtab" data-tab="contracts" onclick="goTab('contracts')">Contratos</button>
         <button id="tab-treasury-btn" class="dtab" data-tab="treasury" onclick="goTab('treasury')">Tesorería</button>
+        <button id="tab-network-btn" class="dtab" data-tab="network" onclick="goTab('network')">Red</button>
         <button id="tab-admin-btn" class="dtab" data-tab="admin" onclick="goTab('admin')">Admin</button>
       </div>
       <div class="admin-main-header">
@@ -278,6 +280,116 @@
         <div class="panel">
           <div class="panel-head"><div class="panel-title">💼 Detalle de tesorerías</div><button class="btn-outline" onclick="loadTreasury()" style="padding:5px 12px;font-size:11px;">↻ Actualizar</button></div>
           <div class="panel-body" id="tr-body"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Cargando…</div></div></div>
+        </div>
+      </div>
+
+
+      
+      <!-- ── NETWORK / RED ── -->
+      <div class="tpane" id="tab-network">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div style="font-size:22px;font-weight:800;letter-spacing:-.5px;color:var(--gray-900);">🌐 Red del protocolo</div>
+            <div style="font-size:12px;color:var(--gray-500);margin-top:2px;">Lectura por batches desde Core / Ranks. Útil para validar niveles, usuarios y puntos.</div>
+          </div>
+          <button class="btn-outline" onclick="networkResetAndLoad()" style="padding:8px 18px;font-size:13px;">↻ Escanear red</button>
+        </div>
+
+        <div class="alert alert-info" style="margin-bottom:16px;">
+          <span>ℹ</span>
+          <span>El contrato propaga automáticamente volumen hacia arriba hasta el límite configurado en <strong>Auto Volume Depth</strong>. Esta pestaña reconstruye la red off-chain por batches y, si el contrato expone cola de puntos pendientes, permite procesarla por batches on-chain.</span>
+        </div>
+
+        <div class="g4" style="margin-bottom:16px;">
+          <div class="kpi" style="border-left:3px solid var(--blue);">
+            <div class="kpi-label">Usuarios escaneados</div>
+            <div class="kpi-value blue" id="net-users-scanned">—</div>
+            <div class="kpi-sub" id="net-scan-progress">Sin escaneo</div>
+          </div>
+          <div class="kpi" style="border-left:3px solid var(--purple);">
+            <div class="kpi-label">Niveles encontrados</div>
+            <div class="kpi-value purple" id="net-levels-found">—</div>
+            <div class="kpi-sub">Desde Company Root</div>
+          </div>
+          <div class="kpi" style="border-left:3px solid var(--green);">
+            <div class="kpi-label">Puntos distribuidos</div>
+            <div class="kpi-value green" id="net-points-distributed">—</div>
+            <div class="kpi-sub" id="net-points-source">Lectura on-chain / estimada</div>
+          </div>
+          <div class="kpi" style="border-left:3px solid var(--amber);">
+            <div class="kpi-label">Puntos por distribuir</div>
+            <div class="kpi-value amber" id="net-points-pending">—</div>
+            <div class="kpi-sub" id="net-pending-count">Cola pendiente</div>
+          </div>
+        </div>
+
+        <div class="g3" style="margin-bottom:16px;">
+          <div class="kpi">
+            <div class="kpi-label">Profundidad automática</div>
+            <div class="kpi-value" id="net-auto-depth">—</div>
+            <div class="kpi-sub">Niveles que el contrato sube automáticamente</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Profundidad real máxima</div>
+            <div class="kpi-value blue" id="net-max-depth">—</div>
+            <div class="kpi-sub">Calculada desde uplines</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Usuarios fuera de árbol</div>
+            <div class="kpi-value" id="net-orphans">—</div>
+            <div class="kpi-sub">Sin ruta clara al Root</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-title">⚙️ Lectura por batch</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <input class="addr-inp" id="net-batch-size" value="250" style="width:90px;padding:7px 10px;" title="Tamaño de batch"/>
+              <button class="btn-outline" onclick="networkLoadNextBatch()" style="padding:6px 12px;font-size:12px;">Cargar siguiente batch</button>
+              <button class="btn-ghost" onclick="networkLoadAllBatches()" style="padding:6px 12px;font-size:12px;">Cargar todo</button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="mem-row"><span class="mem-label">Cursor</span><span class="mem-val" id="net-cursor">—</span></div>
+            <div class="mem-row"><span class="mem-label">Company Root</span><span class="mem-val" id="net-root" style="font-size:11px;">—</span></div>
+            <div class="mem-row"><span class="mem-label">Último resultado</span><span class="mem-val" id="net-last-msg">Listo para iniciar.</span></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-title">📊 Usuarios y puntos por nivel</div>
+            <button class="btn-outline" onclick="networkRenderLevels()" style="padding:5px 12px;font-size:11px;">Recalcular tabla</button>
+          </div>
+          <div class="panel-body" id="net-levels-table">
+            <div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin datos</div><div class="empty-desc">Ejecuta el escaneo para ver cuántos usuarios hay en cada nivel.</div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">🧩 Proceso de puntos pendientes por batch</div></div>
+          <div class="panel-body">
+            <div class="alert alert-warn">
+              <span>⚠</span>
+              <span>Estos botones solo funcionarán si el contrato desplegado incluye funciones de cola de volumen pendiente. Si no existen, el panel mostrará “no disponible” sin afectar el resto del dashboard.</span>
+            </div>
+            <div class="g3" style="margin-bottom:14px;">
+              <div class="adm-field">
+                <label class="adm-label">Batch size on-chain</label>
+                <input class="addr-inp" id="net-process-size" value="50"/>
+              </div>
+              <div class="adm-field">
+                <label class="adm-label">Función detectada</label>
+                <div class="mem-val" id="net-process-fn" style="text-align:left;padding-top:11px;">—</div>
+              </div>
+              <div class="adm-field">
+                <label class="adm-label">Acción</label>
+                <button class="btn-primary" onclick="networkProcessPendingBatch()">Procesar batch pendiente</button>
+              </div>
+            </div>
+            <div id="net-process-log" style="font-family:var(--mono);font-size:12px;color:var(--gray-500);background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:12px;min-height:42px;">Esperando consulta…</div>
+          </div>
         </div>
       </div>
 
@@ -898,6 +1010,12 @@ const CORE_ABI = [
   "function owner() view returns (address)",
   "function guardian() view returns (address)",
   "function autoVolumeDepth() view returns (uint8)",
+  "function totalDistributedNetworkVolume() view returns (uint256)",
+  "function totalVolumeDistributed() view returns (uint256)",
+  "function pendingNetworkVolume() view returns (uint256)",
+  "function undistributedVolume() view returns (uint256)",
+  "function pendingNetworkVolumeCount() view returns (uint256)",
+  "function pendingVolumeCount() view returns (uint256)",
   "function slotProgram() view returns (address)",
   "function ranksModule() view returns (address)",
   "function poolsModule() view returns (address)",
@@ -916,7 +1034,10 @@ const CORE_ABI = [
   "function setCommercialPartnerAndMasterRole(address, string) external",
   "function setMasterRole(address, address, string) external",
   "function clearSpecialRole(address, string) external",
-  "function setCommercialLineage(address, address, address, string) external"
+  "function setCommercialLineage(address, address, address, string) external",
+  "function processNetworkVolumeBatch(uint256) external returns (uint256)",
+  "function distributePendingVolumeBatch(uint256) external returns (uint256)",
+  "function processPendingVolumeBatch(uint256) external returns (uint256)"
 ];
 
 const SLOT_ABI = [
@@ -3457,6 +3578,273 @@ async function loadNetworkTab(addr) {
     await loadDirectsList(addr, dcnt);
 
   } catch(e) { console.error('[loadNetworkTab]', e); }
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// ADMIN NETWORK TAB — off-chain tree scan + optional pending-volume batch
+// ═══════════════════════════════════════════════════════════
+const NETWORK_ZERO = '0x0000000000000000000000000000000000000000';
+const networkState = {
+  cursor: 0,
+  total: 0,
+  root: '',
+  users: [],
+  upline: {},
+  personal: {},
+  totalNet: {},
+  qualified: {},
+  loaded: false,
+  loadingAll: false
+};
+
+function _netSet(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+function _netIsAddr(a){ return /^0x[0-9a-fA-F]{40}$/.test(String(a||'')); }
+function networkAddrKey(a){ return String(a||'').toLowerCase(); }
+function _netBatchSize(id, fallback){
+  const n = parseInt(document.getElementById(id)?.value || fallback, 10);
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 1000) : fallback;
+}
+
+async function loadNetworkTab() {
+  await networkInit();
+  if (!networkState.loaded) await networkLoadNextBatch();
+  await networkLoadPendingStats();
+}
+
+async function networkInit(force=false) {
+  if (!contracts.core) return;
+  if (networkState.loaded && !force) return;
+  networkState.cursor = 0;
+  networkState.users = [];
+  networkState.upline = {};
+  networkState.personal = {};
+  networkState.totalNet = {};
+  networkState.qualified = {};
+  networkState.total = Number(await contracts.core.totalUsers().catch(()=>0n));
+  networkState.root = (await contracts.core.companyRoot().catch(()=>NETWORK_ZERO)) || NETWORK_ZERO;
+  const depth = await contracts.core.autoVolumeDepth().catch(()=>21);
+  _netSet('net-root', networkState.root);
+  _netSet('net-auto-depth', Number(depth) + ' niveles');
+  _netSet('net-cursor', '0 / ' + networkState.total.toLocaleString());
+  _netSet('net-users-scanned', '0');
+  _netSet('net-levels-found', '—');
+  _netSet('net-max-depth', '—');
+  _netSet('net-orphans', '—');
+  _netSet('net-last-msg', 'Red inicializada.');
+  networkState.loaded = true;
+}
+
+async function networkResetAndLoad() {
+  await networkInit(true);
+  await networkLoadNextBatch();
+  await networkLoadPendingStats();
+}
+
+async function networkLoadNextBatch() {
+  if (!contracts.core) { toast('Core no conectado', 'error'); return; }
+  await networkInit();
+  if (networkState.cursor >= networkState.total) {
+    _netSet('net-last-msg', 'Escaneo completo.');
+    networkRenderLevels();
+    return;
+  }
+  const size = _netBatchSize('net-batch-size', 250);
+  const start = networkState.cursor;
+  const end = Math.min(start + size, networkState.total);
+  _netSet('net-last-msg', 'Leyendo usuarios ' + start + ' a ' + (end - 1) + '…');
+  try {
+    const idxs = [];
+    for (let i = start; i < end; i++) idxs.push(i);
+    const addrsBatch = await Promise.all(idxs.map(i => contracts.core.userAt(i).catch(()=>NETWORK_ZERO)));
+    const clean = addrsBatch.filter(_netIsAddr).filter(a => networkAddrKey(a) !== NETWORK_ZERO);
+
+    const infoBatch = await Promise.all(clean.map(a => contracts.core.userInfo(a).catch(()=>null)));
+    let personalBatch = [], totalNetBatch = [], qualBatch = [];
+    if (contracts.rank) {
+      [personalBatch, totalNetBatch, qualBatch] = await Promise.all([
+        Promise.all(clean.map(a => contracts.rank.personalVolume(a).catch(()=>0n))),
+        Promise.all(clean.map(a => contracts.rank.totalNetworkVolume(a).catch(()=>0n))),
+        Promise.all(clean.map(a => contracts.rank.qualifiedNetworkVolume(a).catch(()=>0n))),
+      ]);
+    }
+
+    clean.forEach((a, idx) => {
+      const k = networkAddrKey(a);
+      if (!networkState.upline[k]) networkState.users.push(a);
+      const inf = infoBatch[idx];
+      let up = NETWORK_ZERO;
+      if (inf) up = inf[2] || inf.upline || NETWORK_ZERO;
+      networkState.upline[k] = _netIsAddr(up) ? up : NETWORK_ZERO;
+      networkState.personal[k] = personalBatch[idx] || 0n;
+      networkState.totalNet[k] = totalNetBatch[idx] || 0n;
+      networkState.qualified[k] = qualBatch[idx] || 0n;
+    });
+
+    networkState.cursor = end;
+    _netSet('net-users-scanned', networkState.users.length.toLocaleString());
+    _netSet('net-cursor', networkState.cursor.toLocaleString() + ' / ' + networkState.total.toLocaleString());
+    _netSet('net-scan-progress', Math.round((networkState.cursor / Math.max(1, networkState.total)) * 100) + '% leído');
+    _netSet('net-last-msg', 'Batch cargado: ' + clean.length.toLocaleString() + ' usuarios.');
+    networkRenderLevels();
+  } catch(e) {
+    console.error('[networkLoadNextBatch]', e);
+    _netSet('net-last-msg', 'Error: ' + (e.message || e).slice(0, 90));
+    toast('Error leyendo batch de red', 'error');
+  }
+}
+
+async function networkLoadAllBatches() {
+  if (networkState.loadingAll) return;
+  networkState.loadingAll = true;
+  try {
+    await networkInit();
+    while (networkState.cursor < networkState.total) {
+      await networkLoadNextBatch();
+      await new Promise(r => setTimeout(r, 80));
+    }
+    await networkLoadPendingStats();
+    networkRenderLevels();
+    toast('✅ Escaneo de red completo', 'success');
+  } finally {
+    networkState.loadingAll = false;
+  }
+}
+
+function networkComputeLevels() {
+  const rootKey = networkAddrKey(networkState.root || NETWORK_ZERO);
+  const memo = {};
+  const visiting = new Set();
+  function levelOf(addr) {
+    const k = networkAddrKey(addr);
+    if (!k || k === NETWORK_ZERO) return null;
+    if (k === rootKey) return 0;
+    if (memo[k] !== undefined) return memo[k];
+    if (visiting.has(k)) return null;
+    visiting.add(k);
+    const up = networkState.upline[k];
+    if (!up || networkAddrKey(up) === NETWORK_ZERO) { visiting.delete(k); return null; }
+    const ul = levelOf(up);
+    visiting.delete(k);
+    if (ul === null || ul === undefined) return null;
+    memo[k] = ul + 1;
+    return memo[k];
+  }
+
+  const byLevel = {};
+  let maxDepth = 0, orphans = 0;
+  let distributedEstimate = 0n;
+  for (const a of networkState.users) {
+    const k = networkAddrKey(a);
+    const lv = levelOf(a);
+    distributedEstimate += BigInt(networkState.totalNet[k] || 0n);
+    if (lv === null || lv === undefined) { orphans++; continue; }
+    if (lv === 0) continue;
+    if (!byLevel[lv]) byLevel[lv] = { users: 0, personal: 0n, totalNet: 0n, qualified: 0n };
+    byLevel[lv].users += 1;
+    byLevel[lv].personal += BigInt(networkState.personal[k] || 0n);
+    byLevel[lv].totalNet += BigInt(networkState.totalNet[k] || 0n);
+    byLevel[lv].qualified += BigInt(networkState.qualified[k] || 0n);
+    if (lv > maxDepth) maxDepth = lv;
+  }
+  return { byLevel, maxDepth, orphans, distributedEstimate };
+}
+
+function networkRenderLevels() {
+  const el = document.getElementById('net-levels-table');
+  if (!el) return;
+  const { byLevel, maxDepth, orphans, distributedEstimate } = networkComputeLevels();
+  const levels = Object.keys(byLevel).map(Number).sort((a,b)=>a-b);
+  _netSet('net-levels-found', levels.length.toLocaleString());
+  _netSet('net-max-depth', maxDepth ? maxDepth.toLocaleString() + ' niveles' : '—');
+  _netSet('net-orphans', orphans.toLocaleString());
+  if (document.getElementById('net-points-distributed')?.textContent === '—') {
+    _netSet('net-points-distributed', fmt18s(distributedEstimate));
+    _netSet('net-points-source', 'Estimado: suma totalNetworkVolume');
+  }
+  if (!levels.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin niveles cargados</div><div class="empty-desc">Carga un batch o verifica Company Root/uplines.</div></div>';
+    return;
+  }
+  el.innerHTML = `<table class="tbl">
+    <thead><tr><th>Nivel</th><th>Usuarios</th><th>Personal Volume</th><th>Total Network Volume</th><th>Qualified Volume</th></tr></thead>
+    <tbody>${levels.map(l => {
+      const x = byLevel[l];
+      return `<tr>
+        <td><strong>Nivel ${l}</strong></td>
+        <td>${x.users.toLocaleString()}</td>
+        <td>${fmt18s(x.personal)}</td>
+        <td>${fmt18s(x.totalNet)}</td>
+        <td>${fmt18s(x.qualified)}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+async function _netReadFirst(methods, fallback=0n) {
+  if (!contracts.core) return fallback;
+  for (const m of methods) {
+    try {
+      if (typeof contracts.core[m] === 'function') {
+        const v = await contracts.core[m]();
+        return v;
+      }
+    } catch(e) {}
+  }
+  return fallback;
+}
+
+async function networkLoadPendingStats() {
+  if (!contracts.core) return;
+  const distributed = await _netReadFirst(['totalDistributedNetworkVolume','totalVolumeDistributed'], null);
+  const pending = await _netReadFirst(['pendingNetworkVolume','undistributedVolume'], null);
+  const pendingCount = await _netReadFirst(['pendingNetworkVolumeCount','pendingVolumeCount'], null);
+  if (distributed !== null) {
+    _netSet('net-points-distributed', fmt18s(distributed));
+    _netSet('net-points-source', 'Función on-chain detectada');
+  } else {
+    const est = networkComputeLevels().distributedEstimate;
+    _netSet('net-points-distributed', fmt18s(est));
+    _netSet('net-points-source', 'Estimado: suma totalNetworkVolume');
+  }
+  if (pending !== null) _netSet('net-points-pending', fmt18s(pending));
+  else _netSet('net-points-pending', 'No disponible');
+  if (pendingCount !== null) _netSet('net-pending-count', Number(pendingCount).toLocaleString() + ' items pendientes');
+  else _netSet('net-pending-count', 'Requiere función de cola en contrato');
+  networkDetectProcessFunction();
+}
+
+function networkDetectProcessFunction() {
+  const candidates = ['processNetworkVolumeBatch','distributePendingVolumeBatch','processPendingVolumeBatch'];
+  const found = candidates.find(fn => contracts.core && typeof contracts.core[fn] === 'function');
+  _netSet('net-process-fn', found || 'No disponible');
+  return found;
+}
+
+async function networkProcessPendingBatch() {
+  if (!signer || !contracts.core) { toast('Conecta wallet owner/guardian', 'error'); return; }
+  const fn = networkDetectProcessFunction();
+  const log = document.getElementById('net-process-log');
+  if (!fn) {
+    if (log) log.textContent = 'El contrato actual no expone processNetworkVolumeBatch/distributePendingVolumeBatch/processPendingVolumeBatch.';
+    toast('Función batch no disponible en este contrato', 'error');
+    return;
+  }
+  const size = _netBatchSize('net-process-size', 50);
+  try {
+    if (log) log.textContent = 'Ejecutando ' + fn + '(' + size + ')…';
+    toast('Procesando puntos pendientes por batch…', 'info');
+    const tx = await contracts.core.connect(signer)[fn](size);
+    await tx.wait();
+    if (log) log.textContent = '✅ Batch procesado correctamente. Tx: ' + tx.hash;
+    toast('✅ Batch de puntos procesado', 'success');
+    await networkLoadPendingStats();
+  } catch(e) {
+    console.error('[networkProcessPendingBatch]', e);
+    const msg = (e?.reason || e?.message || String(e)).slice(0, 160);
+    if (log) log.textContent = 'Error: ' + msg;
+    toast('Error procesando batch: ' + msg.slice(0, 60), 'error');
+  }
 }
 
 
