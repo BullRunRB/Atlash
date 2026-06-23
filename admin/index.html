@@ -377,7 +377,7 @@
           <div class="panel-body">
             <div class="alert alert-info">
               <span>ℹ</span>
-              <span>Primero genera el archivo externo con compras, buyer, uplines fuera del depth automático y montos. Luego el panel construye el <strong>batchId</strong> único y deja listo el payload para <code>syncNetworkVolumeBatch(batchId, users, amounts)</code>.</span>
+              <span>Este módulo hace el cálculo completo: lee todos los usuarios/uplines desde Core, lee compras <code>SlotStarted</code>/<code>SlotRestarted</code> desde SlotProgram, reconstruye la línea ascendente y genera el archivo con los uplines fuera del <strong>Auto Volume Depth</strong> para subirlo con <code>syncNetworkVolumeBatch(batchId, users, amounts)</code>.</span>
             </div>
             <div class="g3" style="margin-bottom:12px;">
               <div class="adm-field">
@@ -420,7 +420,7 @@
                 <div class="g3" style="margin-bottom:12px;">
                   <div class="adm-field">
                     <label class="adm-label">Bloque inicial</label>
-                    <input class="addr-inp" id="net-scan-from-block" placeholder="ej. bloque del despliegue"/>
+                    <input class="addr-inp" id="net-scan-from-block" placeholder="ej. bloque del despliegue o último batch + 1"/>
                   </div>
                   <div class="adm-field">
                     <label class="adm-label">Bloque final</label>
@@ -432,11 +432,13 @@
                   </div>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-                  <button class="btn-primary" onclick="networkReadSlotPurchasesFromChain(false)">Leer compras on-chain</button>
-                  <button class="btn-ghost" onclick="networkReadSlotPurchasesFromChain(true)">Leer y calcular archivo</button>
+                  <button class="btn-primary" onclick="networkAutoCalculateVolumeFile()">Calcular y generar archivo 21+</button>
+                  <button class="btn-ghost" onclick="networkReadSlotPurchasesFromChain(false)">Solo leer compras</button>
+                  <button class="btn-ghost" onclick="networkReadSlotPurchasesFromChain(true)">Leer compras y calcular</button>
+                  <button class="btn-outline" onclick="networkUseLastProcessedBlock()">Usar último batch + 1</button>
                   <button class="btn-outline" onclick="networkDownloadPurchasesCSV()">⬇ Descargar compras CSV</button>
                 </div>
-                <div id="net-scan-purchases-log" style="font-family:var(--mono);font-size:12px;color:var(--gray-500);background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:12px;min-height:42px;white-space:pre-wrap;">Sin lectura de eventos.</div>
+                <div id="net-scan-purchases-log" style="font-family:var(--mono);font-size:12px;color:var(--gray-500);background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:12px;min-height:42px;white-space:pre-wrap;">Sin lectura de eventos. Paso único recomendado: llena bloque inicial/final y presiona “Calcular y generar archivo 21+”.</div>
               </div>
             </div>
 
@@ -1098,6 +1100,7 @@ const CORE_ABI = [
   "function companyRoot() view returns (address)",
   "function owner() view returns (address)",
   "function guardian() view returns (address)",
+  "function volumeUpdater() view returns (address)",
   "function autoVolumeDepth() view returns (uint8)",
   "function totalDistributedNetworkVolume() view returns (uint256)",
   "function totalVolumeDistributed() view returns (uint256)",
@@ -3765,7 +3768,7 @@ async function networkLoadNextBatch() {
       if (!networkState.upline[k]) networkState.users.push(a);
       const inf = infoBatch[idx];
       let up = NETWORK_ZERO;
-      if (inf) up = inf[2] || inf.upline || NETWORK_ZERO;
+      if (inf) up = inf[3] || inf.upline || NETWORK_ZERO;
       networkState.upline[k] = _netIsAddr(up) ? up : NETWORK_ZERO;
       networkState.personal[k] = personalBatch[idx] || 0n;
       networkState.totalNet[k] = totalNetBatch[idx] || 0n;
@@ -3974,6 +3977,41 @@ async function _netReadLogsChunked(address, topics, fromBlock, toBlock, step, on
   }
   return out;
 }
+
+function networkUseLastProcessedBlock() {
+  const last = localStorage.getItem('atlash:lastVolumeBatchToBlock');
+  const el = document.getElementById('net-scan-from-block');
+  if (!last) { toast('No hay último batch guardado en este navegador', 'error'); return; }
+  if (el) el.value = String(Number(last) + 1);
+  _netScanSet('Bloque inicial actualizado con último batch + 1: ' + (Number(last) + 1));
+}
+async function networkEnsureFullUserGraph() {
+  await networkInit();
+  if (networkState.cursor < networkState.total) {
+    _netScanSet('Cargando todos los usuarios y uplines desde Core antes del cálculo…\n' + networkState.cursor + ' / ' + networkState.total);
+    await networkLoadAllBatches();
+  }
+  if (networkState.cursor < networkState.total) throw new Error('No se pudo completar el escaneo de usuarios');
+  return true;
+}
+async function networkAutoCalculateVolumeFile() {
+  try {
+    if (!provider || !contracts.core || !addrs?.slot) { toast('Conecta red, Core y SlotProgram primero', 'error'); return; }
+    const fromRaw = _netScanRead('net-scan-from-block');
+    if (!fromRaw) {
+      toast('Indica el bloque inicial para no duplicar compras', 'error');
+      _netScanSet('Falta el bloque inicial. Usa el bloque de despliegue para el primer cálculo, o “Usar último batch + 1” después de un batch exitoso.');
+      return;
+    }
+    await networkEnsureFullUserGraph();
+    await networkReadSlotPurchasesFromChain(true);
+  } catch(e) {
+    console.error('[networkAutoCalculateVolumeFile]', e);
+    _netScanSet('Error en cálculo automático: ' + (e?.message || String(e)));
+    toast('Error en cálculo automático', 'error');
+  }
+}
+
 async function networkReadSlotPurchasesFromChain(autoCalculate=false) {
   try {
     if (!provider || !addrs?.slot) { toast('Inicializa red y contrato SlotProgram primero', 'error'); return; }
@@ -3981,7 +4019,8 @@ async function networkReadSlotPurchasesFromChain(autoCalculate=false) {
     const fromRaw = _netScanRead('net-scan-from-block');
     const toRaw = _netScanRead('net-scan-to-block');
     const stepRaw = parseInt(_netScanRead('net-scan-block-step') || '5000', 10);
-    const fromBlock = fromRaw ? parseInt(fromRaw, 10) : Math.max(0, latest - 50000);
+    const savedLastBlock = localStorage.getItem('atlash:lastVolumeBatchToBlock');
+    const fromBlock = fromRaw ? parseInt(fromRaw, 10) : (savedLastBlock ? Number(savedLastBlock) + 1 : Math.max(0, latest - 50000));
     const toBlock = toRaw ? parseInt(toRaw, 10) : latest;
     const step = Number.isFinite(stepRaw) && stepRaw > 0 ? Math.min(stepRaw, 20000) : 5000;
     if (!Number.isFinite(fromBlock) || !Number.isFinite(toBlock) || fromBlock > toBlock) {
@@ -4012,7 +4051,7 @@ async function networkReadSlotPurchasesFromChain(autoCalculate=false) {
           amountWei: amount.toString(),
           block: String(log.blockNumber),
           txHash: log.transactionHash,
-          logIndex: log.index
+          logIndex: (log.index ?? log.logIndex ?? 0)
         });
       } catch(e) {}
     }
@@ -4063,7 +4102,7 @@ function networkClearVolumeGenerator() {
   const seq=document.getElementById('net-gen-seq'); if(seq) seq.value='1';
   const step=document.getElementById('net-scan-block-step'); if(step) step.value='5000';
   _netGenSet('Esperando compras…');
-  _netScanSet('Sin lectura de eventos.');
+  _netScanSet('Sin lectura de eventos. Paso único recomendado: llena bloque inicial/final y presiona “Calcular y generar archivo 21+”.');
   const t=document.getElementById('net-gen-table'); if(t) t.innerHTML='';
 }
 
@@ -4106,8 +4145,12 @@ function _netAmountToWei(v) {
   return ethers.parseUnits(raw, 18);
 }
 async function _netUserUpline(user) {
+  const key = _netAddrKey(user);
+  if (networkState.upline && networkState.upline[key]) return networkState.upline[key];
   const r = await contracts.core.userInfo(user);
-  return r[3] || r.upline || ethers.ZeroAddress;
+  const up = r[3] || r.upline || ethers.ZeroAddress;
+  if (networkState.upline) networkState.upline[key] = up;
+  return up;
 }
 async function _netResolveMonth() {
   const manual = _netGenRead('net-gen-month');
@@ -4134,6 +4177,7 @@ async function networkGenerateVolumeFile() {
   const bad = purchases.find(x => !isAddr(x.buyer));
   if (bad) { toast('Buyer inválido: ' + bad.buyer, 'error'); return; }
   try {
+    await networkEnsureFullUserGraph();
     _netGenSet('Calculando uplines fuera del depth automático…');
     const monthId = await _netResolveMonth();
     const refBlock = await _netResolveBlock();
@@ -4188,6 +4232,7 @@ async function networkGenerateVolumeFile() {
       syncUsers: users,
       syncAmountsWei: amounts,
       syncAmountsUSDT: amounts.map(a => ethers.formatUnits(BigInt(a),18)),
+      aggregateRows: users.map((u,i)=>({user:u, amountWei:amounts[i], amountUSDT:ethers.formatUnits(BigInt(amounts[i]),18)})),
       maxBatch
     };
     let msg = '✅ Archivo calculado\n';
@@ -4248,6 +4293,7 @@ async function networkExecuteGeneratedVolumeBatch() {
     const core = contracts.core.connect(signer);
     const tx = await core.syncNetworkVolumeBatch(p.batchId, p.syncUsers, p.syncAmountsWei);
     await tx.wait();
+    try { localStorage.setItem('atlash:lastVolumeBatchToBlock', String(p.refBlock)); } catch(e) {}
     _netGenSet('✅ Batch subido on-chain\nTx: ' + tx.hash + '\nBatchId: ' + p.batchId + '\nEventos NetworkVolumeSynced disponibles en BscScan.');
     toast('✅ Volumen subido correctamente', 'success');
     await networkLoadPendingStats().catch(()=>{});
