@@ -407,10 +407,43 @@
                 <input class="addr-inp" id="net-gen-max-batch" value="200"/>
               </div>
             </div>
+
+            <div class="panel" style="box-shadow:none;border-style:dashed;margin-bottom:14px;">
+              <div class="panel-head">
+                <div class="panel-title">🔎 Lectura automática de compras on-chain</div>
+              </div>
+              <div class="panel-body">
+                <div class="alert alert-info">
+                  <span>ℹ</span>
+                  <span>El panel lee los eventos <code>SlotStarted</code> y <code>SlotRestarted</code> del contrato SlotProgram, arma el CSV de compras y luego calcula automáticamente los uplines por encima del depth automático.</span>
+                </div>
+                <div class="g3" style="margin-bottom:12px;">
+                  <div class="adm-field">
+                    <label class="adm-label">Bloque inicial</label>
+                    <input class="addr-inp" id="net-scan-from-block" placeholder="ej. bloque del despliegue"/>
+                  </div>
+                  <div class="adm-field">
+                    <label class="adm-label">Bloque final</label>
+                    <input class="addr-inp" id="net-scan-to-block" placeholder="auto = último bloque"/>
+                  </div>
+                  <div class="adm-field">
+                    <label class="adm-label">Tamaño de lectura</label>
+                    <input class="addr-inp" id="net-scan-block-step" value="5000"/>
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+                  <button class="btn-primary" onclick="networkReadSlotPurchasesFromChain(false)">Leer compras on-chain</button>
+                  <button class="btn-ghost" onclick="networkReadSlotPurchasesFromChain(true)">Leer y calcular archivo</button>
+                  <button class="btn-outline" onclick="networkDownloadPurchasesCSV()">⬇ Descargar compras CSV</button>
+                </div>
+                <div id="net-scan-purchases-log" style="font-family:var(--mono);font-size:12px;color:var(--gray-500);background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:12px;min-height:42px;white-space:pre-wrap;">Sin lectura de eventos.</div>
+              </div>
+            </div>
+
             <div class="adm-field">
               <label class="adm-label">Compras a procesar — CSV</label>
               <textarea class="addr-inp" id="net-gen-csv" style="height:110px;resize:vertical;font-family:var(--mono);" placeholder="purchaseId,buyer,amountUSDT,block\nTX001,0xBuyer...,320,45123456\nTX002,0xBuyer...,80,45123480"></textarea>
-              <div style="font-size:11px;color:var(--gray-400);margin-top:5px;">Columnas aceptadas: <code>purchaseId,buyer,amountUSDT,block</code>. También funciona sin encabezado: <code>buyer,amountUSDT</code>.</div>
+              <div style="font-size:11px;color:var(--gray-400);margin-top:5px;">Puedes pegarlo manualmente o generarlo con “Leer compras on-chain”. Columnas aceptadas: <code>purchaseId,buyer,amountUSDT,block</code>.</div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
               <button class="btn-primary" onclick="networkGenerateVolumeFile()">1. Calcular archivo</button>
@@ -3909,6 +3942,112 @@ async function networkProcessPendingBatch() {
 
 // ── NETWORK VOLUME FILE GENERATOR / SYNC LEVEL 21+ ──
 let networkGeneratedVolumePayload = null;
+let networkScannedPurchases = [];
+const NETWORK_SLOT_EVENT_ABI = [
+  "event SlotStarted(uint256 indexed positionId, address indexed user, uint8 indexed level, uint256 amount, uint256 activationFee, bool roiEnabled)",
+  "event SlotRestarted(uint256 indexed positionId, address indexed user, uint8 indexed level, uint256 amount, uint256 activationFee, bool roiEnabled)"
+];
+const NETWORK_SLOT_EVENT_IFACE = new ethers.Interface(NETWORK_SLOT_EVENT_ABI);
+
+function _netScanSet(msg) {
+  const el = document.getElementById('net-scan-purchases-log');
+  if (el) el.textContent = msg;
+}
+function _netScanRead(id){ return (document.getElementById(id)?.value || '').trim(); }
+function _netCsvEscape(v){ return '"' + String(v ?? '').replace(/"/g,'""') + '"'; }
+function _netPurchasesToCSV(rows) {
+  const lines = ['purchaseId,buyer,amountUSDT,block'];
+  rows.forEach(r => lines.push([r.purchaseId,r.buyer,r.amountUSDT,r.block].map(_netCsvEscape).join(',')));
+  return lines.join('\n');
+}
+function _netUniquePurchaseKey(r) { return String(r.txHash || '') + ':' + String(r.logIndex || '') + ':' + String(r.event || '') + ':' + String(r.positionId || ''); }
+async function _netReadLogsChunked(address, topics, fromBlock, toBlock, step, onProgress) {
+  const out = [];
+  let from = fromBlock;
+  while (from <= toBlock) {
+    const to = Math.min(toBlock, from + step - 1);
+    onProgress?.(from, to, out.length);
+    const logs = await provider.getLogs({ address, topics, fromBlock: from, toBlock: to });
+    out.push(...logs);
+    from = to + 1;
+    await new Promise(r => setTimeout(r, 70));
+  }
+  return out;
+}
+async function networkReadSlotPurchasesFromChain(autoCalculate=false) {
+  try {
+    if (!provider || !addrs?.slot) { toast('Inicializa red y contrato SlotProgram primero', 'error'); return; }
+    const latest = await provider.getBlockNumber();
+    const fromRaw = _netScanRead('net-scan-from-block');
+    const toRaw = _netScanRead('net-scan-to-block');
+    const stepRaw = parseInt(_netScanRead('net-scan-block-step') || '5000', 10);
+    const fromBlock = fromRaw ? parseInt(fromRaw, 10) : Math.max(0, latest - 50000);
+    const toBlock = toRaw ? parseInt(toRaw, 10) : latest;
+    const step = Number.isFinite(stepRaw) && stepRaw > 0 ? Math.min(stepRaw, 20000) : 5000;
+    if (!Number.isFinite(fromBlock) || !Number.isFinite(toBlock) || fromBlock > toBlock) {
+      toast('Rango de bloques inválido', 'error'); return;
+    }
+    const slotAddr = addrs.slot;
+    const topicStarted = NETWORK_SLOT_EVENT_IFACE.getEvent('SlotStarted').topicHash;
+    const topicRestarted = NETWORK_SLOT_EVENT_IFACE.getEvent('SlotRestarted').topicHash;
+    _netScanSet('Leyendo eventos SlotStarted/SlotRestarted desde bloque ' + fromBlock + ' hasta ' + toBlock + '…');
+    const logs = await _netReadLogsChunked(slotAddr, [[topicStarted, topicRestarted]], fromBlock, toBlock, step, (from,to,count) => {
+      _netScanSet('Leyendo bloques ' + from + ' → ' + to + '\nEventos encontrados hasta ahora: ' + count);
+    });
+    const parsed = [];
+    for (const log of logs) {
+      try {
+        const ev = NETWORK_SLOT_EVENT_IFACE.parseLog(log);
+        const user = ev.args.user || ev.args[1];
+        const amount = ev.args.amount || ev.args[3];
+        const positionId = ev.args.positionId || ev.args[0];
+        const roiEnabled = ev.args.roiEnabled ?? ev.args[5];
+        if (!roiEnabled) continue;
+        parsed.push({
+          event: ev.name,
+          purchaseId: `${ev.name}-${String(positionId)}-${log.transactionHash.slice(0,10)}`,
+          positionId: String(positionId),
+          buyer: ethers.getAddress(user),
+          amountUSDT: ethers.formatUnits(amount, 18),
+          amountWei: amount.toString(),
+          block: String(log.blockNumber),
+          txHash: log.transactionHash,
+          logIndex: log.index
+        });
+      } catch(e) {}
+    }
+    const seen = new Set();
+    networkScannedPurchases = parsed
+      .sort((a,b) => (Number(a.block)-Number(b.block)) || (Number(a.logIndex)-Number(b.logIndex)))
+      .filter(r => { const k=_netUniquePurchaseKey(r); if(seen.has(k)) return false; seen.add(k); return true; });
+    const csv = _netPurchasesToCSV(networkScannedPurchases);
+    const csvEl = document.getElementById('net-gen-csv');
+    if (csvEl) csvEl.value = csv;
+    const total = networkScannedPurchases.reduce((acc,r) => acc + _netAmountToWei(r.amountUSDT), 0n);
+    _netScanSet('✅ Lectura finalizada\n' +
+      'Eventos brutos: ' + logs.length + '\n' +
+      'Compras ROI encontradas: ' + networkScannedPurchases.length + '\n' +
+      'Volumen comprado leído: ' + Number(ethers.formatUnits(total,18)).toLocaleString('es-CO',{maximumFractionDigits:2}) + ' USDT\n' +
+      'Rango: ' + fromBlock + ' → ' + toBlock + '\n' +
+      (networkScannedPurchases.length ? 'CSV de compras cargado abajo.' : 'No se encontraron compras en ese rango.'));
+    toast('Compras on-chain leídas: ' + networkScannedPurchases.length, 'success');
+    if (autoCalculate && networkScannedPurchases.length) await networkGenerateVolumeFile();
+  } catch(e) {
+    console.error('[networkReadSlotPurchasesFromChain]', e);
+    _netScanSet('Error leyendo eventos: ' + (e?.message || String(e)) + '\nPrueba con un rango de bloques más pequeño o baja el tamaño de lectura.');
+    toast('Error leyendo compras on-chain', 'error');
+  }
+}
+function networkDownloadPurchasesCSV() {
+  if (!networkScannedPurchases.length) {
+    const csv = _netGenRead('net-gen-csv');
+    if (!csv) { toast('Primero lee compras on-chain', 'error'); return; }
+    _netDownload('atlash_compras_onchain_manual.csv', csv, 'text/csv');
+    return;
+  }
+  _netDownload('atlash_compras_onchain.csv', _netPurchasesToCSV(networkScannedPurchases), 'text/csv');
+}
+
 
 function _netGenSet(msg) {
   const el = document.getElementById('net-gen-summary');
@@ -3918,13 +4057,16 @@ function _netGenRead(id) {
   return (document.getElementById(id)?.value || '').trim();
 }
 function networkClearVolumeGenerator() {
-  ['net-gen-csv','net-gen-month','net-gen-block','net-gen-seq'].forEach(id => {
-    const el = document.getElementById(id); if (el && id !== 'net-gen-seq') el.value = ''; if (el && id === 'net-gen-seq') el.value = '1';
-  });
   networkGeneratedVolumePayload = null;
+  networkScannedPurchases = [];
+  ['net-gen-csv','net-gen-month','net-gen-block','net-scan-from-block','net-scan-to-block'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  const seq=document.getElementById('net-gen-seq'); if(seq) seq.value='1';
+  const step=document.getElementById('net-scan-block-step'); if(step) step.value='5000';
   _netGenSet('Esperando compras…');
-  const t = document.getElementById('net-gen-table'); if (t) t.innerHTML = '';
+  _netScanSet('Sin lectura de eventos.');
+  const t=document.getElementById('net-gen-table'); if(t) t.innerHTML='';
 }
+
 function _netParseCsvLine(line) {
   const out = []; let cur = '', q = false;
   for (let i=0;i<line.length;i++) {
