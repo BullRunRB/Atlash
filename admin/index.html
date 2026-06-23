@@ -368,27 +368,40 @@
         </div>
 
         <div class="panel">
-          <div class="panel-head"><div class="panel-title">🧩 Proceso de puntos pendientes por batch</div></div>
+          <div class="panel-head"><div class="panel-title">🧩 Subida manual de volumen 21+ por batch</div></div>
           <div class="panel-body">
-            <div class="alert alert-warn">
-              <span>⚠</span>
-              <span>Estos botones solo funcionarán si el contrato desplegado incluye funciones de cola de volumen pendiente. Si no existen, el panel mostrará “no disponible” sin afectar el resto del dashboard.</span>
+            <div class="alert alert-info">
+              <span>ℹ</span>
+              <span>El contrato desplegado no tiene una cola automática de “pendientes”. Para subir volumen que no fue propagado por encima del Auto Volume Depth, usa <strong>syncNetworkVolumeBatch(batchId, users, amounts)</strong>. Debes cargar las wallets que recibirán volumen y el monto USDT correspondiente para cada una.</span>
             </div>
-            <div class="g3" style="margin-bottom:14px;">
+            <div class="g2" style="margin-bottom:14px;">
               <div class="adm-field">
-                <label class="adm-label">Batch size on-chain</label>
-                <input class="addr-inp" id="net-process-size" value="50"/>
+                <label class="adm-label">Batch ID</label>
+                <div class="adm-row">
+                  <input class="addr-inp" id="net-batch-id" placeholder="0x… o generar automáticamente"/>
+                  <button class="btn-ghost" onclick="networkGenerateBatchId()" style="padding:8px 12px;font-size:12px;">Generar</button>
+                </div>
               </div>
               <div class="adm-field">
-                <label class="adm-label">Función detectada</label>
-                <div class="mem-val" id="net-process-fn" style="text-align:left;padding-top:11px;">—</div>
-              </div>
-              <div class="adm-field">
-                <label class="adm-label">Acción</label>
-                <button class="btn-primary" onclick="networkProcessPendingBatch()">Procesar batch pendiente</button>
+                <label class="adm-label">Función usada</label>
+                <div class="mem-val" id="net-process-fn" style="text-align:left;padding-top:11px;">syncNetworkVolumeBatch</div>
               </div>
             </div>
-            <div id="net-process-log" style="font-family:var(--mono);font-size:12px;color:var(--gray-500);background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:12px;min-height:42px;">Esperando consulta…</div>
+            <div class="g2" style="margin-bottom:14px;">
+              <div class="adm-field">
+                <label class="adm-label">Wallets destino</label>
+                <textarea class="addr-inp" id="net-sync-users" style="height:110px;resize:vertical;" placeholder="0x...&#10;0x..."></textarea>
+              </div>
+              <div class="adm-field">
+                <label class="adm-label">Montos USDT — mismo orden que wallets</label>
+                <textarea class="addr-inp" id="net-sync-amounts" style="height:110px;resize:vertical;" placeholder="100&#10;100"></textarea>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+              <button class="btn-primary" onclick="networkProcessPendingBatch()">Procesar syncNetworkVolumeBatch</button>
+              <button class="btn-outline" onclick="networkValidateVolumeBatch()">Validar datos</button>
+            </div>
+            <div id="net-process-log" style="font-family:var(--mono);font-size:12px;color:var(--gray-500);background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:12px;min-height:42px;white-space:pre-wrap;">Esperando datos…</div>
           </div>
         </div>
       </div>
@@ -1035,9 +1048,8 @@ const CORE_ABI = [
   "function setMasterRole(address, address, string) external",
   "function clearSpecialRole(address, string) external",
   "function setCommercialLineage(address, address, address, string) external",
-  "function processNetworkVolumeBatch(uint256) external returns (uint256)",
-  "function distributePendingVolumeBatch(uint256) external returns (uint256)",
-  "function processPendingVolumeBatch(uint256) external returns (uint256)"
+  "function syncNetworkVolumeBatch(bytes32,address[],uint256[]) external",
+  "function processedVolumeBatch(bytes32) view returns (bool)"
 ];
 
 const SLOT_ABI = [
@@ -3815,10 +3827,70 @@ async function networkLoadPendingStats() {
 }
 
 function networkDetectProcessFunction() {
-  const candidates = ['processNetworkVolumeBatch','distributePendingVolumeBatch','processPendingVolumeBatch'];
-  const found = candidates.find(fn => contracts.core && typeof contracts.core[fn] === 'function');
+  const found = contracts.core && typeof contracts.core.syncNetworkVolumeBatch === 'function'
+    ? 'syncNetworkVolumeBatch'
+    : null;
   _netSet('net-process-fn', found || 'No disponible');
   return found;
+}
+
+function networkGenerateBatchId() {
+  const el = document.getElementById('net-batch-id');
+  if (!el || !window.ethers) return;
+  el.value = ethers.id('ATLASH_VOLUME_BATCH_' + Date.now() + '_' + Math.random().toString(16).slice(2));
+  networkValidateVolumeBatch();
+}
+
+function _netParseLines(id) {
+  return String(document.getElementById(id)?.value || '')
+    .split(/[\n,;]+/)
+    .map(x => x.trim())
+    .filter(Boolean);
+}
+
+function networkBuildVolumeBatch() {
+  let batchId = String(document.getElementById('net-batch-id')?.value || '').trim();
+  const users = _netParseLines('net-sync-users');
+  const amountsRaw = _netParseLines('net-sync-amounts');
+  if (!batchId) {
+    batchId = ethers.id('ATLASH_VOLUME_BATCH_' + Date.now() + '_' + Math.random().toString(16).slice(2));
+    const idEl = document.getElementById('net-batch-id');
+    if (idEl) idEl.value = batchId;
+  }
+  if (!/^0x[0-9a-fA-F]{64}$/.test(batchId)) throw new Error('Batch ID inválido. Debe ser bytes32 0x + 64 hex.');
+  if (!users.length) throw new Error('Agrega al menos una wallet destino.');
+  if (users.length !== amountsRaw.length) throw new Error('La cantidad de wallets y montos no coincide.');
+  if (users.length > 200) throw new Error('Máximo recomendado: 200 wallets por batch.');
+
+  const cleanUsers = users.map((u, i) => {
+    if (!_netIsAddr(u)) throw new Error('Wallet inválida en línea ' + (i + 1));
+    return ethers.getAddress(u);
+  });
+  const amounts = amountsRaw.map((x, i) => {
+    const normalized = x.replace(/\s/g, '').replace(',', '.');
+    if (!/^\d+(\.\d+)?$/.test(normalized)) throw new Error('Monto inválido en línea ' + (i + 1));
+    const v = ethers.parseUnits(normalized, 18);
+    if (v <= 0n) throw new Error('Monto debe ser mayor a cero en línea ' + (i + 1));
+    return v;
+  });
+  return { batchId, users: cleanUsers, amounts };
+}
+
+function networkValidateVolumeBatch() {
+  const log = document.getElementById('net-process-log');
+  try {
+    const b = networkBuildVolumeBatch();
+    const total = b.amounts.reduce((a, x) => a + x, 0n);
+    if (log) log.textContent = '✅ Datos válidos\n' +
+      'Función: syncNetworkVolumeBatch(bytes32,address[],uint256[])\n' +
+      'Wallets: ' + b.users.length + '\n' +
+      'Total volumen a sincronizar: ' + fmt18s(total) + ' USDT\n' +
+      'Batch ID: ' + b.batchId;
+    return b;
+  } catch(e) {
+    if (log) log.textContent = '⚠️ ' + (e.message || String(e));
+    return null;
+  }
 }
 
 async function networkProcessPendingBatch() {
@@ -3826,24 +3898,35 @@ async function networkProcessPendingBatch() {
   const fn = networkDetectProcessFunction();
   const log = document.getElementById('net-process-log');
   if (!fn) {
-    if (log) log.textContent = 'El contrato actual no expone processNetworkVolumeBatch/distributePendingVolumeBatch/processPendingVolumeBatch.';
+    if (log) log.textContent = 'El contrato actual no expone syncNetworkVolumeBatch(bytes32,address[],uint256[]).';
     toast('Función batch no disponible en este contrato', 'error');
     return;
   }
-  const size = _netBatchSize('net-process-size', 50);
+  let b;
+  try { b = networkBuildVolumeBatch(); }
+  catch(e) { if (log) log.textContent = '⚠️ ' + e.message; toast(e.message.slice(0,70), 'error'); return; }
+
   try {
-    if (log) log.textContent = 'Ejecutando ' + fn + '(' + size + ')…';
-    toast('Procesando puntos pendientes por batch…', 'info');
-    const tx = await contracts.core.connect(signer)[fn](size);
+    const already = await contracts.core.processedVolumeBatch(b.batchId).catch(()=>false);
+    if (already) throw new Error('Este Batch ID ya fue procesado. Genera uno nuevo.');
+
+    const total = b.amounts.reduce((a, x) => a + x, 0n);
+    if (log) log.textContent = 'Ejecutando syncNetworkVolumeBatch…\nWallets: ' + b.users.length + '\nTotal: ' + fmt18s(total) + ' USDT';
+    toast('Procesando syncNetworkVolumeBatch…', 'info');
+    const tx = await contracts.core.connect(signer).syncNetworkVolumeBatch(b.batchId, b.users, b.amounts);
     await tx.wait();
-    if (log) log.textContent = '✅ Batch procesado correctamente. Tx: ' + tx.hash;
-    toast('✅ Batch de puntos procesado', 'success');
+    if (log) log.textContent = '✅ Batch procesado correctamente.\nTx: ' + tx.hash + '\nBatch ID: ' + b.batchId;
+    toast('✅ Volumen sincronizado por batch', 'success');
     await networkLoadPendingStats();
+    if (networkState.loaded) networkRenderLevels();
   } catch(e) {
     console.error('[networkProcessPendingBatch]', e);
-    const msg = (e?.reason || e?.message || String(e)).slice(0, 160);
-    if (log) log.textContent = 'Error: ' + msg;
-    toast('Error procesando batch: ' + msg.slice(0, 60), 'error');
+    let msg = e?.reason || e?.shortMessage || e?.message || String(e);
+    if (String(msg).includes('require(false)')) {
+      msg = 'La transacción fue rechazada por el contrato. Verifica que la wallet sea Owner/Guardian/VolumeUpdater, que el Batch ID no esté repetido y que users/amounts tengan la misma longitud.';
+    }
+    if (log) log.textContent = 'Error procesando batch:\n' + String(msg).slice(0, 500);
+    toast('Error procesando batch: ' + String(msg).slice(0, 60), 'error');
   }
 }
 
