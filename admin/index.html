@@ -367,41 +367,84 @@
           </div>
         </div>
 
+
+
         <div class="panel">
-          <div class="panel-head"><div class="panel-title">🧩 Subida manual de volumen 21+ por batch</div></div>
+          <div class="panel-head">
+            <div class="panel-title">🧮 Generador de archivo — volumen nivel 21+</div>
+            <button class="btn-outline" onclick="networkClearVolumeGenerator()" style="padding:5px 12px;font-size:11px;">Limpiar</button>
+          </div>
           <div class="panel-body">
             <div class="alert alert-info">
               <span>ℹ</span>
-              <span>El contrato desplegado no tiene una cola automática de “pendientes”. Para subir volumen que no fue propagado por encima del Auto Volume Depth, usa <strong>syncNetworkVolumeBatch(batchId, users, amounts)</strong>. Debes cargar las wallets que recibirán volumen y el monto USDT correspondiente para cada una.</span>
+              <span>Primero genera el archivo externo con compras, buyer, uplines fuera del depth automático y montos. Luego el panel construye el <strong>batchId</strong> único y deja listo el payload para <code>syncNetworkVolumeBatch(batchId, users, amounts)</code>.</span>
             </div>
-            <div class="g2" style="margin-bottom:14px;">
+            <div class="g3" style="margin-bottom:12px;">
               <div class="adm-field">
-                <label class="adm-label">Batch ID</label>
-                <div class="adm-row">
-                  <input class="addr-inp" id="net-batch-id" placeholder="0x… o generar automáticamente"/>
-                  <button class="btn-ghost" onclick="networkGenerateBatchId()" style="padding:8px 12px;font-size:12px;">Generar</button>
-                </div>
+                <label class="adm-label">Month ID / Mes</label>
+                <input class="addr-inp" id="net-gen-month" placeholder="ej. 3"/>
               </div>
               <div class="adm-field">
-                <label class="adm-label">Función usada</label>
-                <div class="mem-val" id="net-process-fn" style="text-align:left;padding-top:11px;">syncNetworkVolumeBatch</div>
+                <label class="adm-label">Bloque referencia</label>
+                <input class="addr-inp" id="net-gen-block" placeholder="auto = último bloque"/>
+              </div>
+              <div class="adm-field">
+                <label class="adm-label">Consecutivo</label>
+                <input class="addr-inp" id="net-gen-seq" value="1"/>
               </div>
             </div>
-            <div class="g2" style="margin-bottom:14px;">
+            <div class="g3" style="margin-bottom:12px;">
               <div class="adm-field">
-                <label class="adm-label">Wallets destino</label>
-                <textarea class="addr-inp" id="net-sync-users" style="height:110px;resize:vertical;" placeholder="0x...&#10;0x..."></textarea>
+                <label class="adm-label">Depth automático</label>
+                <input class="addr-inp" id="net-gen-depth" placeholder="auto = contrato"/>
               </div>
               <div class="adm-field">
-                <label class="adm-label">Montos USDT — mismo orden que wallets</label>
-                <textarea class="addr-inp" id="net-sync-amounts" style="height:110px;resize:vertical;" placeholder="100&#10;100"></textarea>
+                <label class="adm-label">Máx. niveles a recorrer</label>
+                <input class="addr-inp" id="net-gen-max-levels" value="80"/>
               </div>
+              <div class="adm-field">
+                <label class="adm-label">Máx. registros on-chain</label>
+                <input class="addr-inp" id="net-gen-max-batch" value="200"/>
+              </div>
+            </div>
+            <div class="adm-field">
+              <label class="adm-label">Compras a procesar — CSV</label>
+              <textarea class="addr-inp" id="net-gen-csv" style="height:110px;resize:vertical;font-family:var(--mono);" placeholder="purchaseId,buyer,amountUSDT,block\nTX001,0xBuyer...,320,45123456\nTX002,0xBuyer...,80,45123480"></textarea>
+              <div style="font-size:11px;color:var(--gray-400);margin-top:5px;">Columnas aceptadas: <code>purchaseId,buyer,amountUSDT,block</code>. También funciona sin encabezado: <code>buyer,amountUSDT</code>.</div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-              <button class="btn-primary" onclick="networkProcessPendingBatch()">Procesar syncNetworkVolumeBatch</button>
-              <button class="btn-outline" onclick="networkValidateVolumeBatch()">Validar datos</button>
+              <button class="btn-primary" onclick="networkGenerateVolumeFile()">1. Calcular archivo</button>
+              <button class="btn-ghost" onclick="networkDownloadVolumeJSON()">⬇ Descargar JSON</button>
+              <button class="btn-ghost" onclick="networkDownloadVolumeCSV()">⬇ Descargar CSV detalle</button>
+              <button class="btn-outline" onclick="networkExecuteGeneratedVolumeBatch()">2. Subir batch on-chain</button>
             </div>
-            <div id="net-process-log" style="font-family:var(--mono);font-size:12px;color:var(--gray-500);background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:12px;min-height:42px;white-space:pre-wrap;">Esperando datos…</div>
+            <div id="net-gen-summary" style="font-family:var(--mono);font-size:12px;color:var(--gray-500);background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:12px;min-height:48px;white-space:pre-wrap;">Esperando compras…</div>
+            <div id="net-gen-table" style="margin-top:14px;"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">🧩 Proceso de puntos pendientes por batch</div></div>
+          <div class="panel-body">
+            <div class="alert alert-warn">
+              <span>⚠</span>
+              <span>Estos botones solo funcionarán si el contrato desplegado incluye funciones de cola de volumen pendiente. Si no existen, el panel mostrará “no disponible” sin afectar el resto del dashboard.</span>
+            </div>
+            <div class="g3" style="margin-bottom:14px;">
+              <div class="adm-field">
+                <label class="adm-label">Batch size on-chain</label>
+                <input class="addr-inp" id="net-process-size" value="50"/>
+              </div>
+              <div class="adm-field">
+                <label class="adm-label">Función detectada</label>
+                <div class="mem-val" id="net-process-fn" style="text-align:left;padding-top:11px;">—</div>
+              </div>
+              <div class="adm-field">
+                <label class="adm-label">Acción</label>
+                <button class="btn-primary" onclick="networkProcessPendingBatch()">Procesar batch pendiente</button>
+              </div>
+            </div>
+            <div id="net-process-log" style="font-family:var(--mono);font-size:12px;color:var(--gray-500);background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:12px;min-height:42px;">Esperando consulta…</div>
           </div>
         </div>
       </div>
@@ -1048,8 +1091,11 @@ const CORE_ABI = [
   "function setMasterRole(address, address, string) external",
   "function clearSpecialRole(address, string) external",
   "function setCommercialLineage(address, address, address, string) external",
-  "function syncNetworkVolumeBatch(bytes32,address[],uint256[]) external",
-  "function processedVolumeBatch(bytes32) view returns (bool)"
+  "function processedVolumeBatch(bytes32) view returns (bool)",
+  "function syncNetworkVolumeBatch(bytes32, address[], uint256[]) external",
+  "function processNetworkVolumeBatch(uint256) external returns (uint256)",
+  "function distributePendingVolumeBatch(uint256) external returns (uint256)",
+  "function processPendingVolumeBatch(uint256) external returns (uint256)"
 ];
 
 const SLOT_ABI = [
@@ -3827,70 +3873,10 @@ async function networkLoadPendingStats() {
 }
 
 function networkDetectProcessFunction() {
-  const found = contracts.core && typeof contracts.core.syncNetworkVolumeBatch === 'function'
-    ? 'syncNetworkVolumeBatch'
-    : null;
+  const candidates = ['processNetworkVolumeBatch','distributePendingVolumeBatch','processPendingVolumeBatch'];
+  const found = candidates.find(fn => contracts.core && typeof contracts.core[fn] === 'function');
   _netSet('net-process-fn', found || 'No disponible');
   return found;
-}
-
-function networkGenerateBatchId() {
-  const el = document.getElementById('net-batch-id');
-  if (!el || !window.ethers) return;
-  el.value = ethers.id('ATLASH_VOLUME_BATCH_' + Date.now() + '_' + Math.random().toString(16).slice(2));
-  networkValidateVolumeBatch();
-}
-
-function _netParseLines(id) {
-  return String(document.getElementById(id)?.value || '')
-    .split(/[\n,;]+/)
-    .map(x => x.trim())
-    .filter(Boolean);
-}
-
-function networkBuildVolumeBatch() {
-  let batchId = String(document.getElementById('net-batch-id')?.value || '').trim();
-  const users = _netParseLines('net-sync-users');
-  const amountsRaw = _netParseLines('net-sync-amounts');
-  if (!batchId) {
-    batchId = ethers.id('ATLASH_VOLUME_BATCH_' + Date.now() + '_' + Math.random().toString(16).slice(2));
-    const idEl = document.getElementById('net-batch-id');
-    if (idEl) idEl.value = batchId;
-  }
-  if (!/^0x[0-9a-fA-F]{64}$/.test(batchId)) throw new Error('Batch ID inválido. Debe ser bytes32 0x + 64 hex.');
-  if (!users.length) throw new Error('Agrega al menos una wallet destino.');
-  if (users.length !== amountsRaw.length) throw new Error('La cantidad de wallets y montos no coincide.');
-  if (users.length > 200) throw new Error('Máximo recomendado: 200 wallets por batch.');
-
-  const cleanUsers = users.map((u, i) => {
-    if (!_netIsAddr(u)) throw new Error('Wallet inválida en línea ' + (i + 1));
-    return ethers.getAddress(u);
-  });
-  const amounts = amountsRaw.map((x, i) => {
-    const normalized = x.replace(/\s/g, '').replace(',', '.');
-    if (!/^\d+(\.\d+)?$/.test(normalized)) throw new Error('Monto inválido en línea ' + (i + 1));
-    const v = ethers.parseUnits(normalized, 18);
-    if (v <= 0n) throw new Error('Monto debe ser mayor a cero en línea ' + (i + 1));
-    return v;
-  });
-  return { batchId, users: cleanUsers, amounts };
-}
-
-function networkValidateVolumeBatch() {
-  const log = document.getElementById('net-process-log');
-  try {
-    const b = networkBuildVolumeBatch();
-    const total = b.amounts.reduce((a, x) => a + x, 0n);
-    if (log) log.textContent = '✅ Datos válidos\n' +
-      'Función: syncNetworkVolumeBatch(bytes32,address[],uint256[])\n' +
-      'Wallets: ' + b.users.length + '\n' +
-      'Total volumen a sincronizar: ' + fmt18s(total) + ' USDT\n' +
-      'Batch ID: ' + b.batchId;
-    return b;
-  } catch(e) {
-    if (log) log.textContent = '⚠️ ' + (e.message || String(e));
-    return null;
-  }
 }
 
 async function networkProcessPendingBatch() {
@@ -3898,38 +3884,238 @@ async function networkProcessPendingBatch() {
   const fn = networkDetectProcessFunction();
   const log = document.getElementById('net-process-log');
   if (!fn) {
-    if (log) log.textContent = 'El contrato actual no expone syncNetworkVolumeBatch(bytes32,address[],uint256[]).';
+    if (log) log.textContent = 'El contrato actual no expone processNetworkVolumeBatch/distributePendingVolumeBatch/processPendingVolumeBatch.';
     toast('Función batch no disponible en este contrato', 'error');
     return;
   }
-  let b;
-  try { b = networkBuildVolumeBatch(); }
-  catch(e) { if (log) log.textContent = '⚠️ ' + e.message; toast(e.message.slice(0,70), 'error'); return; }
-
+  const size = _netBatchSize('net-process-size', 50);
   try {
-    const already = await contracts.core.processedVolumeBatch(b.batchId).catch(()=>false);
-    if (already) throw new Error('Este Batch ID ya fue procesado. Genera uno nuevo.');
-
-    const total = b.amounts.reduce((a, x) => a + x, 0n);
-    if (log) log.textContent = 'Ejecutando syncNetworkVolumeBatch…\nWallets: ' + b.users.length + '\nTotal: ' + fmt18s(total) + ' USDT';
-    toast('Procesando syncNetworkVolumeBatch…', 'info');
-    const tx = await contracts.core.connect(signer).syncNetworkVolumeBatch(b.batchId, b.users, b.amounts);
+    if (log) log.textContent = 'Ejecutando ' + fn + '(' + size + ')…';
+    toast('Procesando puntos pendientes por batch…', 'info');
+    const tx = await contracts.core.connect(signer)[fn](size);
     await tx.wait();
-    if (log) log.textContent = '✅ Batch procesado correctamente.\nTx: ' + tx.hash + '\nBatch ID: ' + b.batchId;
-    toast('✅ Volumen sincronizado por batch', 'success');
+    if (log) log.textContent = '✅ Batch procesado correctamente. Tx: ' + tx.hash;
+    toast('✅ Batch de puntos procesado', 'success');
     await networkLoadPendingStats();
-    if (networkState.loaded) networkRenderLevels();
   } catch(e) {
     console.error('[networkProcessPendingBatch]', e);
-    let msg = e?.reason || e?.shortMessage || e?.message || String(e);
-    if (String(msg).includes('require(false)')) {
-      msg = 'La transacción fue rechazada por el contrato. Verifica que la wallet sea Owner/Guardian/VolumeUpdater, que el Batch ID no esté repetido y que users/amounts tengan la misma longitud.';
-    }
-    if (log) log.textContent = 'Error procesando batch:\n' + String(msg).slice(0, 500);
-    toast('Error procesando batch: ' + String(msg).slice(0, 60), 'error');
+    const msg = (e?.reason || e?.message || String(e)).slice(0, 160);
+    if (log) log.textContent = 'Error: ' + msg;
+    toast('Error procesando batch: ' + msg.slice(0, 60), 'error');
   }
 }
 
+
+
+// ── NETWORK VOLUME FILE GENERATOR / SYNC LEVEL 21+ ──
+let networkGeneratedVolumePayload = null;
+
+function _netGenSet(msg) {
+  const el = document.getElementById('net-gen-summary');
+  if (el) el.textContent = msg;
+}
+function _netGenRead(id) {
+  return (document.getElementById(id)?.value || '').trim();
+}
+function networkClearVolumeGenerator() {
+  ['net-gen-csv','net-gen-month','net-gen-block','net-gen-seq'].forEach(id => {
+    const el = document.getElementById(id); if (el && id !== 'net-gen-seq') el.value = ''; if (el && id === 'net-gen-seq') el.value = '1';
+  });
+  networkGeneratedVolumePayload = null;
+  _netGenSet('Esperando compras…');
+  const t = document.getElementById('net-gen-table'); if (t) t.innerHTML = '';
+}
+function _netParseCsvLine(line) {
+  const out = []; let cur = '', q = false;
+  for (let i=0;i<line.length;i++) {
+    const ch = line[i];
+    if (ch === '"') { q = !q; continue; }
+    if (ch === ',' && !q) { out.push(cur.trim()); cur = ''; continue; }
+    cur += ch;
+  }
+  out.push(cur.trim());
+  return out;
+}
+function _netParsePurchasesCSV(text) {
+  const lines = (text || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+  if (!lines.length) return [];
+  const first = _netParseCsvLine(lines[0]).map(x => x.toLowerCase());
+  const hasHeader = first.some(x => ['buyer','wallet','amount','amountusdt','purchaseid','tx','txhash','block'].includes(x));
+  const headers = hasHeader ? first : [];
+  const body = hasHeader ? lines.slice(1) : lines;
+  const idx = nameList => headers.length ? headers.findIndex(h => nameList.includes(h)) : -1;
+  const iBuyer = idx(['buyer','wallet','user','address']);
+  const iAmount = idx(['amountusdt','amount','slotamount','slot','usdt']);
+  const iPurchase = idx(['purchaseid','tx','txhash','hash','id']);
+  const iBlock = idx(['block','blocknumber']);
+  return body.map((line, n) => {
+    const c = _netParseCsvLine(line);
+    const buyer = (iBuyer >= 0 ? c[iBuyer] : c[0] || '').trim();
+    const amountRaw = (iAmount >= 0 ? c[iAmount] : c[1] || '').replace(/\s/g,'').replace(/,/g,'.');
+    const purchaseId = (iPurchase >= 0 ? c[iPurchase] : c[2] || ('ROW' + (n+1))).trim() || ('ROW' + (n+1));
+    const block = (iBlock >= 0 ? c[iBlock] : c[3] || '').trim();
+    return { purchaseId, buyer, amountUSDT: amountRaw, block };
+  }).filter(x => x.buyer || x.amountUSDT);
+}
+function _netAmountToWei(v) {
+  const raw = String(v || '').trim();
+  if (!raw) throw new Error('Monto vacío');
+  if (/^\d+$/.test(raw) && raw.length > 15) return BigInt(raw);
+  return ethers.parseUnits(raw, 18);
+}
+async function _netUserUpline(user) {
+  const r = await contracts.core.userInfo(user);
+  return r[3] || r.upline || ethers.ZeroAddress;
+}
+async function _netResolveMonth() {
+  const manual = _netGenRead('net-gen-month');
+  if (manual) return String(parseInt(manual,10));
+  if (contracts.core?.currentMonthIndex) return String(Number(await contracts.core.currentMonthIndex()));
+  return '0';
+}
+async function _netResolveDepth() {
+  const manual = _netGenRead('net-gen-depth');
+  if (manual) return Math.max(0, parseInt(manual,10));
+  if (contracts.core?.autoVolumeDepth) return Number(await contracts.core.autoVolumeDepth());
+  return 20;
+}
+async function _netResolveBlock() {
+  const manual = _netGenRead('net-gen-block');
+  if (manual) return String(parseInt(manual,10));
+  try { return String(await provider.getBlockNumber()); } catch { return String(Date.now()); }
+}
+async function networkGenerateVolumeFile() {
+  if (!contracts.core || !provider) { toast('Inicializa red y contratos primero', 'error'); return; }
+  const csv = _netGenRead('net-gen-csv');
+  const purchases = _netParsePurchasesCSV(csv);
+  if (!purchases.length) { toast('Pega compras en formato CSV', 'error'); return; }
+  const bad = purchases.find(x => !isAddr(x.buyer));
+  if (bad) { toast('Buyer inválido: ' + bad.buyer, 'error'); return; }
+  try {
+    _netGenSet('Calculando uplines fuera del depth automático…');
+    const monthId = await _netResolveMonth();
+    const refBlock = await _netResolveBlock();
+    const seq = _netGenRead('net-gen-seq') || '1';
+    const autoDepth = await _netResolveDepth();
+    const maxLevels = Math.max(autoDepth + 1, parseInt(_netGenRead('net-gen-max-levels') || '80', 10));
+    const maxBatch = Math.max(1, parseInt(_netGenRead('net-gen-max-batch') || '200', 10));
+    const root = await contracts.core.companyRoot().catch(() => COMPANY_ROOT || ethers.ZeroAddress);
+    const rootKey = _netAddrKey(root);
+    const detailRows = [];
+    const aggregate = new Map();
+    for (let pidx=0; pidx<purchases.length; pidx++) {
+      const p = purchases[pidx];
+      const amountWei = _netAmountToWei(p.amountUSDT);
+      let current = await _netUserUpline(p.buyer);
+      let level = 1;
+      const seen = new Set([_netAddrKey(p.buyer)]);
+      while (current && !isZero(current) && level <= maxLevels) {
+        const key = _netAddrKey(current);
+        if (seen.has(key)) break;
+        seen.add(key);
+        if (level > autoDepth) {
+          detailRows.push({
+            purchaseId: p.purchaseId,
+            buyer: ethers.getAddress(p.buyer),
+            sourceBlock: p.block || '',
+            upline: ethers.getAddress(current),
+            level,
+            amountUSDT: ethers.formatUnits(amountWei,18),
+            amountWei: amountWei.toString()
+          });
+          aggregate.set(key, (aggregate.get(key) || 0n) + amountWei);
+        }
+        if (key === rootKey) break;
+        current = await _netUserUpline(current);
+        level++;
+      }
+    }
+    const users = Array.from(aggregate.keys()).map(a => ethers.getAddress(a));
+    const amounts = users.map(u => aggregate.get(_netAddrKey(u)).toString());
+    const normalized = JSON.stringify({monthId, refBlock, seq, autoDepth, purchases, detailRows});
+    const fileHash = ethers.keccak256(ethers.toUtf8Bytes(normalized));
+    const batchId = ethers.keccak256(ethers.toUtf8Bytes(['ATLASH_VOLUME_SYNC', monthId, refBlock, seq, fileHash].join('|')));
+    networkGeneratedVolumePayload = {
+      protocol: 'ATLASH',
+      action: 'syncNetworkVolumeBatch',
+      generatedAt: new Date().toISOString(),
+      monthId, refBlock, seq, autoDepth, maxLevels,
+      fileHash, batchId,
+      purchases,
+      detailRows,
+      syncUsers: users,
+      syncAmountsWei: amounts,
+      syncAmountsUSDT: amounts.map(a => ethers.formatUnits(BigInt(a),18)),
+      maxBatch
+    };
+    let msg = '✅ Archivo calculado\n';
+    msg += 'Compras: ' + purchases.length + '\n';
+    msg += 'Registros detalle nivel ' + (autoDepth + 1) + '+: ' + detailRows.length + '\n';
+    msg += 'Usuarios agregados para sync: ' + users.length + '\n';
+    msg += 'BatchId: ' + batchId + '\n';
+    msg += 'FileHash: ' + fileHash + '\n';
+    if (users.length > maxBatch) msg += '\n⚠ El batch agregado supera ' + maxBatch + ' usuarios. Divide el archivo antes de subir on-chain.';
+    _netGenSet(msg);
+    networkRenderGeneratedVolumeTable();
+    toast('Archivo de volumen generado', 'success');
+  } catch(e) {
+    console.error('[networkGenerateVolumeFile]', e);
+    _netGenSet('Error calculando archivo: ' + (e?.message || String(e)));
+    toast('Error generando archivo: ' + (e?.message || String(e)).slice(0,80), 'error');
+  }
+}
+function networkRenderGeneratedVolumeTable() {
+  const el = document.getElementById('net-gen-table');
+  const p = networkGeneratedVolumePayload;
+  if (!el || !p) return;
+  const rows = p.detailRows.slice(0, 60);
+  el.innerHTML = `<table class="tbl"><thead><tr><th>Compra</th><th>Buyer</th><th>Nivel</th><th>Upline</th><th>Monto</th></tr></thead><tbody>${rows.map(r => `<tr><td>${r.purchaseId}</td><td>${short(r.buyer)}</td><td>${r.level}</td><td>${short(r.upline)}</td><td>${Number(r.amountUSDT).toLocaleString('es-CO',{maximumFractionDigits:2})} USDT</td></tr>`).join('')}</tbody></table>${p.detailRows.length > rows.length ? `<div style="font-size:12px;color:var(--gray-400);margin-top:8px;">Mostrando 60 de ${p.detailRows.length} registros. Descarga el CSV para ver todo.</div>` : ''}`;
+}
+function _netDownload(name, content, type='application/json') {
+  const blob = new Blob([content], {type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+function networkDownloadVolumeJSON() {
+  const p = networkGeneratedVolumePayload;
+  if (!p) { toast('Primero calcula el archivo', 'error'); return; }
+  _netDownload(`atlash_volume_sync_${p.monthId}_${p.seq}.json`, JSON.stringify(p, null, 2));
+}
+function networkDownloadVolumeCSV() {
+  const p = networkGeneratedVolumePayload;
+  if (!p) { toast('Primero calcula el archivo', 'error'); return; }
+  const esc = v => '"' + String(v ?? '').replace(/"/g,'""') + '"';
+  const lines = ['batchId,fileHash,purchaseId,buyer,sourceBlock,level,upline,amountUSDT,amountWei'];
+  p.detailRows.forEach(r => lines.push([p.batchId,p.fileHash,r.purchaseId,r.buyer,r.sourceBlock,r.level,r.upline,r.amountUSDT,r.amountWei].map(esc).join(',')));
+  _netDownload(`atlash_volume_sync_detail_${p.monthId}_${p.seq}.csv`, lines.join('\n'), 'text/csv');
+}
+async function networkExecuteGeneratedVolumeBatch() {
+  const p = networkGeneratedVolumePayload;
+  if (!p) { toast('Primero calcula el archivo', 'error'); return; }
+  if (!signer || !contracts.core) { toast('Conecta wallet Owner/Guardian/VolumeUpdater', 'error'); return; }
+  if (typeof contracts.core.syncNetworkVolumeBatch !== 'function') { toast('ABI sin syncNetworkVolumeBatch', 'error'); return; }
+  if (!p.syncUsers.length) { toast('No hay usuarios para subir', 'error'); return; }
+  if (p.syncUsers.length > p.maxBatch) { toast('Divide el batch: supera el máximo configurado', 'error'); return; }
+  try {
+    const already = await contracts.core.processedVolumeBatch?.(p.batchId).catch(() => false);
+    if (already) { toast('Este batchId ya fue procesado', 'error'); return; }
+    _netGenSet((_netGenRead('net-gen-summary') || '') + '\n\nEnviando transacción syncNetworkVolumeBatch…');
+    toast('Subiendo volumen nivel ' + (Number(p.autoDepth)+1) + '+…', 'info');
+    const core = contracts.core.connect(signer);
+    const tx = await core.syncNetworkVolumeBatch(p.batchId, p.syncUsers, p.syncAmountsWei);
+    await tx.wait();
+    _netGenSet('✅ Batch subido on-chain\nTx: ' + tx.hash + '\nBatchId: ' + p.batchId + '\nEventos NetworkVolumeSynced disponibles en BscScan.');
+    toast('✅ Volumen subido correctamente', 'success');
+    await networkLoadPendingStats().catch(()=>{});
+  } catch(e) {
+    console.error('[networkExecuteGeneratedVolumeBatch]', e);
+    const msg = (e?.reason || e?.shortMessage || e?.message || String(e)).slice(0, 220);
+    _netGenSet('Error subiendo batch: ' + msg + '\n\nRevisa permisos: Owner, Guardian o VolumeUpdater; batchId único; users/amounts con la misma longitud; máximo 200 registros.');
+    toast('Error subiendo batch: ' + msg.slice(0,70), 'error');
+  }
+}
 
 
 // ═══════════════════════════════════════════════════════════
