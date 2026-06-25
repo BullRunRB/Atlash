@@ -415,8 +415,9 @@
               <div class="panel-body">
                 <div class="alert alert-info">
                   <span>ℹ</span>
-                  <span>El panel lee los eventos <code>SlotStarted</code> y <code>SlotRestarted</code> del contrato SlotProgram, arma el CSV de compras y luego calcula automáticamente los uplines por encima del depth automático.</span>
+                  <span>El panel lee los eventos <code>SlotStarted</code> y <code>SlotRestarted</code> del contrato SlotProgram, arma el CSV de compras y luego calcula automáticamente los uplines por encima del depth automático. Además omite eventos ya procesados para evitar duplicar volumen.</span>
                 </div>
+                <div id="net-sync-state-box" style="font-family:var(--mono);font-size:12px;color:var(--gray-500);background:#fff;border:1px solid var(--gray-200);border-radius:12px;padding:12px;margin-bottom:12px;white-space:pre-wrap;">Estado: sin historial local de batches.</div>
                 <div class="g3" style="margin-bottom:12px;">
                   <div class="adm-field">
                     <label class="adm-label">Bloque inicial</label>
@@ -437,6 +438,7 @@
                   <button class="btn-ghost" onclick="networkReadSlotPurchasesFromChain(true)">Leer compras y calcular</button>
                   <button class="btn-outline" onclick="networkUseLastProcessedBlock()">Usar último batch + 1</button>
                   <button class="btn-outline" onclick="networkDownloadPurchasesCSV()">⬇ Descargar compras CSV</button>
+                  <button class="btn-outline" onclick="networkResetVolumeSyncState()" title="Solo usar si vas a reprocesar conscientemente desde cero">Reset historial local</button>
                 </div>
                 <div id="net-scan-purchases-log" style="font-family:var(--mono);font-size:12px;color:var(--gray-500);background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:12px;min-height:42px;white-space:pre-wrap;">Sin lectura de eventos. Paso único recomendado: llena bloque inicial/final y presiona “Calcular y generar archivo 21+”.</div>
               </div>
@@ -445,7 +447,7 @@
             <div class="adm-field">
               <label class="adm-label">Compras a procesar — CSV</label>
               <textarea class="addr-inp" id="net-gen-csv" style="height:110px;resize:vertical;font-family:var(--mono);" placeholder="purchaseId,buyer,amountUSDT,block\nTX001,0xBuyer...,320,45123456\nTX002,0xBuyer...,80,45123480"></textarea>
-              <div style="font-size:11px;color:var(--gray-400);margin-top:5px;">Puedes pegarlo manualmente o generarlo con “Leer compras on-chain”. Columnas aceptadas: <code>purchaseId,buyer,amountUSDT,block</code>.</div>
+              <div style="font-size:11px;color:var(--gray-400);margin-top:5px;">Puedes pegarlo manualmente o generarlo con “Leer compras on-chain”. Columnas aceptadas: <code>purchaseId,buyer,amountUSDT,block,eventKey,txHash,logIndex</code>.</div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
               <button class="btn-primary" onclick="networkGenerateVolumeFile()">1. Calcular archivo</button>
@@ -3952,6 +3954,62 @@ const NETWORK_SLOT_EVENT_ABI = [
 ];
 const NETWORK_SLOT_EVENT_IFACE = new ethers.Interface(NETWORK_SLOT_EVENT_ABI);
 
+
+const NETWORK_VOLUME_STATE_KEY = 'atlash:networkVolumeSyncState:v1';
+function _netGetVolumeSyncState() {
+  try {
+    const s = JSON.parse(localStorage.getItem(NETWORK_VOLUME_STATE_KEY) || '{}');
+    return {
+      lastBatchId: s.lastBatchId || '',
+      lastTx: s.lastTx || '',
+      lastProcessedBlock: Number(s.lastProcessedBlock || localStorage.getItem('atlash:lastVolumeBatchToBlock') || 0),
+      lastProcessedAt: s.lastProcessedAt || '',
+      totalProcessedPurchases: Number(s.totalProcessedPurchases || 0),
+      processedEventKeys: Array.isArray(s.processedEventKeys) ? s.processedEventKeys : []
+    };
+  } catch(e) {
+    return { lastBatchId:'', lastTx:'', lastProcessedBlock:0, lastProcessedAt:'', totalProcessedPurchases:0, processedEventKeys:[] };
+  }
+}
+function _netSaveVolumeSyncState(next) {
+  const current = _netGetVolumeSyncState();
+  const merged = { ...current, ...next };
+  const keys = new Set([...(current.processedEventKeys || []), ...(next.processedEventKeys || [])].filter(Boolean));
+  merged.processedEventKeys = Array.from(keys).slice(-50000);
+  try {
+    localStorage.setItem(NETWORK_VOLUME_STATE_KEY, JSON.stringify(merged));
+    if (merged.lastProcessedBlock) localStorage.setItem('atlash:lastVolumeBatchToBlock', String(merged.lastProcessedBlock));
+  } catch(e) {}
+  networkRenderVolumeSyncState();
+}
+function networkRenderVolumeSyncState() {
+  const el = document.getElementById('net-sync-state-box');
+  if (!el) return;
+  const s = _netGetVolumeSyncState();
+  if (!s.lastProcessedBlock && !s.processedEventKeys.length) {
+    el.textContent = 'Estado: sin historial local de batches. Para el primer proceso usa el bloque inicial del despliegue o del último cierre validado.';
+    return;
+  }
+  el.textContent = 'Estado de sincronización local\n' +
+    'Último bloque procesado: ' + (s.lastProcessedBlock || '—') + '\n' +
+    'Último batchId: ' + (s.lastBatchId || '—') + '\n' +
+    'Última tx: ' + (s.lastTx || '—') + '\n' +
+    'Compras/eventos marcados como procesados: ' + (s.processedEventKeys?.length || 0) + '\n' +
+    'Última actualización: ' + (s.lastProcessedAt || '—');
+}
+function networkResetVolumeSyncState() {
+  if (!confirm('Esto borra el historial local de eventos procesados. ¿Seguro?')) return;
+  try {
+    localStorage.removeItem(NETWORK_VOLUME_STATE_KEY);
+    localStorage.removeItem('atlash:lastVolumeBatchToBlock');
+  } catch(e) {}
+  networkRenderVolumeSyncState();
+  _netScanSet('Historial local de batches reseteado. Usa esta opción solo si sabes exactamente qué bloques vas a reprocesar.');
+  toast('Historial local reseteado', 'info');
+}
+
+try { window.addEventListener('DOMContentLoaded', () => setTimeout(networkRenderVolumeSyncState, 300)); } catch(e) {}
+
 function _netScanSet(msg) {
   const el = document.getElementById('net-scan-purchases-log');
   if (el) el.textContent = msg;
@@ -3959,8 +4017,8 @@ function _netScanSet(msg) {
 function _netScanRead(id){ return (document.getElementById(id)?.value || '').trim(); }
 function _netCsvEscape(v){ return '"' + String(v ?? '').replace(/"/g,'""') + '"'; }
 function _netPurchasesToCSV(rows) {
-  const lines = ['purchaseId,buyer,amountUSDT,block'];
-  rows.forEach(r => lines.push([r.purchaseId,r.buyer,r.amountUSDT,r.block].map(_netCsvEscape).join(',')));
+  const lines = ['purchaseId,buyer,amountUSDT,block,eventKey,txHash,logIndex,event,positionId'];
+  rows.forEach(r => lines.push([r.purchaseId,r.buyer,r.amountUSDT,r.block,r.eventKey || _netUniquePurchaseKey(r),r.txHash || '',r.logIndex ?? '',r.event || '',r.positionId || ''].map(_netCsvEscape).join(',')));
   return lines.join('\n');
 }
 function _netUniquePurchaseKey(r) { return String(r.txHash || '') + ':' + String(r.logIndex || '') + ':' + String(r.event || '') + ':' + String(r.positionId || ''); }
@@ -3979,11 +4037,13 @@ async function _netReadLogsChunked(address, topics, fromBlock, toBlock, step, on
 }
 
 function networkUseLastProcessedBlock() {
-  const last = localStorage.getItem('atlash:lastVolumeBatchToBlock');
+  const st = _netGetVolumeSyncState();
+  const last = st.lastProcessedBlock || Number(localStorage.getItem('atlash:lastVolumeBatchToBlock') || 0);
   const el = document.getElementById('net-scan-from-block');
   if (!last) { toast('No hay último batch guardado en este navegador', 'error'); return; }
   if (el) el.value = String(Number(last) + 1);
-  _netScanSet('Bloque inicial actualizado con último batch + 1: ' + (Number(last) + 1));
+  _netScanSet('Bloque inicial actualizado con último batch + 1: ' + (Number(last) + 1) + '\nEventos ya procesados también serán omitidos por eventKey si vuelves a leer un rango anterior.');
+  networkRenderVolumeSyncState();
 }
 async function networkEnsureFullUserGraph() {
   await networkInit();
@@ -4042,7 +4102,7 @@ async function networkReadSlotPurchasesFromChain(autoCalculate=false) {
         const positionId = ev.args.positionId || ev.args[0];
         const roiEnabled = ev.args.roiEnabled ?? ev.args[5];
         if (!roiEnabled) continue;
-        parsed.push({
+        const rawRow = {
           event: ev.name,
           purchaseId: `${ev.name}-${String(positionId)}-${log.transactionHash.slice(0,10)}`,
           positionId: String(positionId),
@@ -4052,21 +4112,27 @@ async function networkReadSlotPurchasesFromChain(autoCalculate=false) {
           block: String(log.blockNumber),
           txHash: log.transactionHash,
           logIndex: (log.index ?? log.logIndex ?? 0)
-        });
+        };
+        rawRow.eventKey = _netUniquePurchaseKey(rawRow);
+        parsed.push(rawRow);
       } catch(e) {}
     }
     const seen = new Set();
-    networkScannedPurchases = parsed
+    const uniquePurchases = parsed
       .sort((a,b) => (Number(a.block)-Number(b.block)) || (Number(a.logIndex)-Number(b.logIndex)))
-      .filter(r => { const k=_netUniquePurchaseKey(r); if(seen.has(k)) return false; seen.add(k); return true; });
+      .filter(r => { const k=r.eventKey || _netUniquePurchaseKey(r); if(seen.has(k)) return false; seen.add(k); return true; });
+    const processedKeys = new Set(_netGetVolumeSyncState().processedEventKeys || []);
+    const skippedAlreadyProcessed = uniquePurchases.filter(r => processedKeys.has(r.eventKey || _netUniquePurchaseKey(r))).length;
+    networkScannedPurchases = uniquePurchases.filter(r => !processedKeys.has(r.eventKey || _netUniquePurchaseKey(r)));
     const csv = _netPurchasesToCSV(networkScannedPurchases);
     const csvEl = document.getElementById('net-gen-csv');
     if (csvEl) csvEl.value = csv;
     const total = networkScannedPurchases.reduce((acc,r) => acc + _netAmountToWei(r.amountUSDT), 0n);
     _netScanSet('✅ Lectura finalizada\n' +
       'Eventos brutos: ' + logs.length + '\n' +
-      'Compras ROI encontradas: ' + networkScannedPurchases.length + '\n' +
-      'Volumen comprado leído: ' + Number(ethers.formatUnits(total,18)).toLocaleString('es-CO',{maximumFractionDigits:2}) + ' USDT\n' +
+      'Compras ROI nuevas: ' + networkScannedPurchases.length + '\n' +
+      'Compras omitidas por historial: ' + skippedAlreadyProcessed + '\n' +
+      'Volumen nuevo leído: ' + Number(ethers.formatUnits(total,18)).toLocaleString('es-CO',{maximumFractionDigits:2}) + ' USDT\n' +
       'Rango: ' + fromBlock + ' → ' + toBlock + '\n' +
       (networkScannedPurchases.length ? 'CSV de compras cargado abajo.' : 'No se encontraron compras en ese rango.'));
     toast('Compras on-chain leídas: ' + networkScannedPurchases.length, 'success');
@@ -4121,7 +4187,7 @@ function _netParsePurchasesCSV(text) {
   const lines = (text || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean);
   if (!lines.length) return [];
   const first = _netParseCsvLine(lines[0]).map(x => x.toLowerCase());
-  const hasHeader = first.some(x => ['buyer','wallet','amount','amountusdt','purchaseid','tx','txhash','block'].includes(x));
+  const hasHeader = first.some(x => ['buyer','wallet','amount','amountusdt','purchaseid','tx','txhash','block','eventkey','logindex'].includes(x));
   const headers = hasHeader ? first : [];
   const body = hasHeader ? lines.slice(1) : lines;
   const idx = nameList => headers.length ? headers.findIndex(h => nameList.includes(h)) : -1;
@@ -4129,13 +4195,23 @@ function _netParsePurchasesCSV(text) {
   const iAmount = idx(['amountusdt','amount','slotamount','slot','usdt']);
   const iPurchase = idx(['purchaseid','tx','txhash','hash','id']);
   const iBlock = idx(['block','blocknumber']);
+  const iEventKey = idx(['eventkey','key']);
+  const iTxHash = idx(['txhash','tx','hash']);
+  const iLogIndex = idx(['logindex','log','index']);
+  const iEvent = idx(['event','eventname']);
+  const iPosition = idx(['positionid','position','id']);
   return body.map((line, n) => {
     const c = _netParseCsvLine(line);
     const buyer = (iBuyer >= 0 ? c[iBuyer] : c[0] || '').trim();
     const amountRaw = (iAmount >= 0 ? c[iAmount] : c[1] || '').replace(/\s/g,'').replace(/,/g,'.');
     const purchaseId = (iPurchase >= 0 ? c[iPurchase] : c[2] || ('ROW' + (n+1))).trim() || ('ROW' + (n+1));
     const block = (iBlock >= 0 ? c[iBlock] : c[3] || '').trim();
-    return { purchaseId, buyer, amountUSDT: amountRaw, block };
+    const eventKey = (iEventKey >= 0 ? c[iEventKey] : '').trim();
+    const txHash = (iTxHash >= 0 ? c[iTxHash] : '').trim();
+    const logIndex = (iLogIndex >= 0 ? c[iLogIndex] : '').trim();
+    const event = (iEvent >= 0 ? c[iEvent] : '').trim();
+    const positionId = (iPosition >= 0 ? c[iPosition] : '').trim();
+    return { purchaseId, buyer, amountUSDT: amountRaw, block, eventKey, txHash, logIndex, event, positionId };
   }).filter(x => x.buyer || x.amountUSDT);
 }
 function _netAmountToWei(v) {
@@ -4172,8 +4248,17 @@ async function _netResolveBlock() {
 async function networkGenerateVolumeFile() {
   if (!contracts.core || !provider) { toast('Inicializa red y contratos primero', 'error'); return; }
   const csv = _netGenRead('net-gen-csv');
-  const purchases = _netParsePurchasesCSV(csv);
+  let purchases = _netParsePurchasesCSV(csv);
   if (!purchases.length) { toast('Pega compras en formato CSV', 'error'); return; }
+  const processedKeys = new Set(_netGetVolumeSyncState().processedEventKeys || []);
+  const beforeFilter = purchases.length;
+  purchases = purchases.filter(x => !x.eventKey || !processedKeys.has(x.eventKey));
+  const omittedByHistory = beforeFilter - purchases.length;
+  if (!purchases.length) {
+    _netGenSet('No hay compras nuevas para procesar. Todas las compras del CSV/rango ya están marcadas como procesadas en el historial local.');
+    toast('Sin compras nuevas para procesar', 'info');
+    return;
+  }
   const bad = purchases.find(x => !isAddr(x.buyer));
   if (bad) { toast('Buyer inválido: ' + bad.buyer, 'error'); return; }
   try {
@@ -4228,6 +4313,7 @@ async function networkGenerateVolumeFile() {
       monthId, refBlock, seq, autoDepth, maxLevels,
       fileHash, batchId,
       purchases,
+      omittedByHistory,
       detailRows,
       syncUsers: users,
       syncAmountsWei: amounts,
@@ -4236,7 +4322,8 @@ async function networkGenerateVolumeFile() {
       maxBatch
     };
     let msg = '✅ Archivo calculado\n';
-    msg += 'Compras: ' + purchases.length + '\n';
+    msg += 'Compras nuevas: ' + purchases.length + '\n';
+    if (omittedByHistory) msg += 'Compras omitidas por historial: ' + omittedByHistory + '\n';
     msg += 'Registros detalle nivel ' + (autoDepth + 1) + '+: ' + detailRows.length + '\n';
     msg += 'Usuarios agregados para sync: ' + users.length + '\n';
     msg += 'BatchId: ' + batchId + '\n';
@@ -4293,8 +4380,17 @@ async function networkExecuteGeneratedVolumeBatch() {
     const core = contracts.core.connect(signer);
     const tx = await core.syncNetworkVolumeBatch(p.batchId, p.syncUsers, p.syncAmountsWei);
     await tx.wait();
-    try { localStorage.setItem('atlash:lastVolumeBatchToBlock', String(p.refBlock)); } catch(e) {}
-    _netGenSet('✅ Batch subido on-chain\nTx: ' + tx.hash + '\nBatchId: ' + p.batchId + '\nEventos NetworkVolumeSynced disponibles en BscScan.');
+    const maxProcessedBlock = Math.max(Number(p.refBlock || 0), ...p.purchases.map(x => Number(x.block || 0)).filter(Number.isFinite));
+    const processedEventKeys = p.purchases.map(x => x.eventKey).filter(Boolean);
+    _netSaveVolumeSyncState({
+      lastBatchId: p.batchId,
+      lastTx: tx.hash,
+      lastProcessedBlock: maxProcessedBlock,
+      lastProcessedAt: new Date().toISOString(),
+      totalProcessedPurchases: (_netGetVolumeSyncState().totalProcessedPurchases || 0) + p.purchases.length,
+      processedEventKeys
+    });
+    _netGenSet('✅ Batch subido on-chain\nTx: ' + tx.hash + '\nBatchId: ' + p.batchId + '\nÚltimo bloque procesado: ' + maxProcessedBlock + '\nEventos NetworkVolumeSynced disponibles en BscScan.');
     toast('✅ Volumen subido correctamente', 'success');
     await networkLoadPendingStats().catch(()=>{});
   } catch(e) {
