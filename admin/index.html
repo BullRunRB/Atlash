@@ -371,7 +371,7 @@
 
         <div class="panel">
           <div class="panel-head">
-            <div class="panel-title">🧮 Generador de archivo — volumen nivel 21+</div>
+            <div class="panel-title">🧮 Generador de archivo — volumen nivel 31+</div>
             <button class="btn-outline" onclick="networkClearVolumeGenerator()" style="padding:5px 12px;font-size:11px;">Limpiar</button>
           </div>
           <div class="panel-body">
@@ -396,7 +396,7 @@
             <div class="g3" style="margin-bottom:12px;">
               <div class="adm-field">
                 <label class="adm-label">Depth automático</label>
-                <input class="addr-inp" id="net-gen-depth" placeholder="auto = contrato"/>
+                <input class="addr-inp" id="net-gen-depth" placeholder="auto = contrato (30)"/>
               </div>
               <div class="adm-field">
                 <label class="adm-label">Máx. niveles a recorrer</label>
@@ -415,7 +415,7 @@
               <div class="panel-body">
                 <div class="alert alert-info">
                   <span>ℹ</span>
-                  <span>El panel lee los eventos <code>SlotStarted</code> y <code>SlotRestarted</code> del contrato SlotProgram, arma el CSV de compras y luego calcula automáticamente los uplines por encima del depth automático. Además omite eventos ya procesados para evitar duplicar volumen.</span>
+                  <span>El panel lee los eventos <code>SlotStarted</code> y <code>SlotRestarted</code> del contrato SlotProgram, arma el CSV de compras y luego calcula automáticamente los uplines por encima del depth automático. Para la configuración actual, si el depth es 30, se toma desde nivel 31 en adelante. Además omite eventos ya procesados para evitar duplicar volumen.</span>
                 </div>
                 <div id="net-sync-state-box" style="font-family:var(--mono);font-size:12px;color:var(--gray-500);background:#fff;border:1px solid var(--gray-200);border-radius:12px;padding:12px;margin-bottom:12px;white-space:pre-wrap;">Estado: sin historial local de batches.</div>
                 <div class="g3" style="margin-bottom:12px;">
@@ -433,14 +433,14 @@
                   </div>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-                  <button class="btn-primary" onclick="networkAutoCalculateVolumeFile()">Calcular y generar archivo 21+</button>
+                  <button class="btn-primary" onclick="networkAutoCalculateVolumeFile()">Calcular y generar archivo 31+</button>
                   <button class="btn-ghost" onclick="networkReadSlotPurchasesFromChain(false)">Solo leer compras</button>
                   <button class="btn-ghost" onclick="networkReadSlotPurchasesFromChain(true)">Leer compras y calcular</button>
                   <button class="btn-outline" onclick="networkUseLastProcessedBlock()">Usar último batch + 1</button>
                   <button class="btn-outline" onclick="networkDownloadPurchasesCSV()">⬇ Descargar compras CSV</button>
                   <button class="btn-outline" onclick="networkResetVolumeSyncState()" title="Solo usar si vas a reprocesar conscientemente desde cero">Reset historial local</button>
                 </div>
-                <div id="net-scan-purchases-log" style="font-family:var(--mono);font-size:12px;color:var(--gray-500);background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:12px;min-height:42px;white-space:pre-wrap;">Sin lectura de eventos. Paso único recomendado: llena bloque inicial/final y presiona “Calcular y generar archivo 21+”.</div>
+                <div id="net-scan-purchases-log" style="font-family:var(--mono);font-size:12px;color:var(--gray-500);background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:12px;min-height:42px;white-space:pre-wrap;">Sin lectura de eventos. Paso único recomendado: llena bloque inicial/final y presiona “Calcular y generar archivo 31+”.</div>
               </div>
             </div>
 
@@ -552,7 +552,7 @@
                 <div class="adm-field"><label class="adm-label">Company Root</label>
                   <div class="adm-row"><input class="addr-inp" id="adm-root-inp" placeholder="0x…"/><button class="btn-ghost" onclick="admSetCompanyRoot()">Actualizar</button></div></div>
                 <div class="adm-field"><label class="adm-label">Auto Volume Depth</label>
-                  <div class="adm-row"><input class="addr-inp" id="adm-depth-inp" placeholder="20" style="max-width:80px;"/><button class="btn-ghost" onclick="admSetDepth()">Actualizar</button></div></div>
+                  <div class="adm-row"><input class="addr-inp" id="adm-depth-inp" placeholder="30" style="max-width:80px;"/><button class="btn-ghost" onclick="admSetDepth()">Actualizar</button></div></div>
                 <div class="sep"></div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                   <button class="btn-outline" onclick="admTogglePause('core')">⏸ Toggle Paused Core</button>
@@ -3945,7 +3945,7 @@ async function networkProcessPendingBatch() {
 
 
 
-// ── NETWORK VOLUME FILE GENERATOR / SYNC LEVEL 21+ ──
+// ── NETWORK VOLUME FILE GENERATOR / SYNC LEVEL 31+ (autoDepth 30 + 1) ──
 let networkGeneratedVolumePayload = null;
 let networkScannedPurchases = [];
 const NETWORK_SLOT_EVENT_ABI = [
@@ -4168,7 +4168,7 @@ function networkClearVolumeGenerator() {
   const seq=document.getElementById('net-gen-seq'); if(seq) seq.value='1';
   const step=document.getElementById('net-scan-block-step'); if(step) step.value='5000';
   _netGenSet('Esperando compras…');
-  _netScanSet('Sin lectura de eventos. Paso único recomendado: llena bloque inicial/final y presiona “Calcular y generar archivo 21+”.');
+  _netScanSet('Sin lectura de eventos. Paso único recomendado: llena bloque inicial/final y presiona “Calcular y generar archivo 31+”.');
   const t=document.getElementById('net-gen-table'); if(t) t.innerHTML='';
 }
 
@@ -4238,7 +4238,7 @@ async function _netResolveDepth() {
   const manual = _netGenRead('net-gen-depth');
   if (manual) return Math.max(0, parseInt(manual,10));
   if (contracts.core?.autoVolumeDepth) return Number(await contracts.core.autoVolumeDepth());
-  return 20;
+  return 30;
 }
 async function _netResolveBlock() {
   const manual = _netGenRead('net-gen-block');
