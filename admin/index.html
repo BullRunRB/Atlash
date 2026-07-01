@@ -1033,6 +1033,27 @@
               <div id="adm-scan-log" style="margin-top:10px;font-size:11px;font-family:var(--mono);color:var(--gray-500);max-height:180px;overflow-y:auto;border:1px solid var(--gray-100);border-radius:8px;padding:8px;"></div>
             </div>
           </div>
+
+          <div class="panel" style="margin-top:16px;border:1.5px solid var(--green);">
+            <div class="panel-head">
+              <div class="panel-title">📁 Archivo de cierre — usuarios calificados</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn-outline" onclick="generateRankCloseReportFromUI(false)" style="padding:5px 12px;font-size:11px;">Generar reporte</button>
+                <button class="btn-ghost" onclick="downloadLastRankCloseJSON()" style="padding:5px 12px;font-size:11px;">Descargar JSON</button>
+                <button class="btn-ghost" onclick="downloadLastRankCloseCSV()" style="padding:5px 12px;font-size:11px;">Descargar CSV</button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="alert alert-info" style="margin-bottom:12px;">
+                <span>ℹ</span>
+                <span>Después de finalizar los rangos R1–R7, este reporte escanea todos los usuarios y lista quién tiene monto claimable en cada pool del mes cerrado. Al usar “Cerrar mes completo”, el Admin lo genera automáticamente.</span>
+              </div>
+              <div id="adm-rank-close-report-summary" style="margin-bottom:12px;font-family:var(--mono);font-size:12px;color:var(--gray-600);">Sin reporte generado.</div>
+              <div id="adm-rank-close-report-table">
+                <div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin archivo</div><div class="empty-desc">Ejecuta el cierre o presiona “Generar reporte”.</div></div>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -5611,10 +5632,169 @@ async function admRunFullScanAllRanks() {
     completed===7 ? 'success' : 'info'
   );
   loadAdminScanStatus();
+  try {
+    addLog('📁 Generando archivo CSV/JSON de usuarios calificados…');
+    await generateRankCloseReport(monthId, true);
+    addLog('✅ Archivos de cierre generados y descargados');
+  } catch(e) {
+    addLog('⚠ No se pudo generar el archivo de cierre: '+(e?.message||String(e)).slice(0,120));
+  }
 }
 
 // switchAdminTab extension handled inline in original function
 
+let lastRankCloseReport = null;
+
+function _rankReportMonthFromUI(){
+  return (document.getElementById('adm-scan-month')?.value || document.getElementById('adm-rank-pool-month')?.value || '').trim();
+}
+
+function _downloadTextFile(filename, text, mime){
+  const blob = new Blob([text], {type: mime || 'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 500);
+}
+
+function _csvCell(v){
+  const s = String(v ?? '');
+  return '"' + s.replace(/"/g,'""') + '"';
+}
+
+function _rankCloseCSV(report){
+  const headers = ['monthId','rank','user','claimableUSDT','claimableWei','poolUSDT','poolWei','personalVolumeUSDT','qualifiedNetworkVolumeUSDT','totalNetworkVolumeUSDT','userRank'];
+  const lines = [headers.map(_csvCell).join(',')];
+  for(const r of report.rows){
+    lines.push(headers.map(h=>_csvCell(r[h])).join(','));
+  }
+  return lines.join('\n');
+}
+
+function downloadLastRankCloseJSON(){
+  if(!lastRankCloseReport){ toast('Primero genera el reporte de cierre','error'); return; }
+  _downloadTextFile('atlash_rank_close_month_'+lastRankCloseReport.monthId+'.json', JSON.stringify(lastRankCloseReport,null,2), 'application/json;charset=utf-8');
+}
+
+function downloadLastRankCloseCSV(){
+  if(!lastRankCloseReport){ toast('Primero genera el reporte de cierre','error'); return; }
+  _downloadTextFile('atlash_rank_close_month_'+lastRankCloseReport.monthId+'.csv', _rankCloseCSV(lastRankCloseReport), 'text/csv;charset=utf-8');
+}
+
+async function generateRankCloseReportFromUI(autoDownload=false){
+  const monthId = _rankReportMonthFromUI();
+  if(!monthId){ toast('monthId requerido','error'); return; }
+  return generateRankCloseReport(monthId, autoDownload);
+}
+
+async function generateRankCloseReport(monthId, autoDownload=false){
+  const summaryEl = document.getElementById('adm-rank-close-report-summary');
+  const tableEl   = document.getElementById('adm-rank-close-report-table');
+  if(!contracts.core || !contracts.rank){ toast('Core/Ranks no inicializados','error'); return null; }
+  if(summaryEl) summaryEl.textContent = 'Generando reporte del mes '+monthId+'…';
+  if(tableEl) tableEl.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:8px;">Escaneando usuarios y pools R1–R7…</div>';
+
+  const startedAt = new Date().toISOString();
+  const totalUsers = Number(await contracts.core.totalUsers().catch(()=>0n));
+  const pools = [];
+  for(let rank=1; rank<=7; rank++){
+    const [pool, finalized, candidateCount] = await Promise.all([
+      contracts.rank.rankPoolByMonth(monthId, rank).catch(()=>0n),
+      contracts.rank.rankPoolFinalized(monthId, rank).catch(()=>false),
+      contracts.rank.scannedRankPoolCandidateCount(monthId, rank).catch(()=>0n),
+    ]);
+    pools.push({
+      rank,
+      poolWei: pool.toString(),
+      poolUSDT: fmt18s(pool),
+      finalized: !!finalized,
+      scannedCandidateCount: Number(candidateCount)
+    });
+  }
+
+  const rows = [];
+  let totalClaimable = 0n;
+  for(let i=0; i<totalUsers; i++){
+    if(summaryEl && (i % 25 === 0 || i === totalUsers-1)) summaryEl.textContent = 'Leyendo usuario '+(i+1)+'/'+totalUsers+'…';
+    const user = await contracts.core.userAt(i).catch(()=>null);
+    if(!user || user === ethers.ZeroAddress) continue;
+
+    const [personal, qualified, totalNet, currentRank] = await Promise.all([
+      contracts.rank.personalVolume(user).catch(()=>0n),
+      contracts.rank.qualifiedNetworkVolume(user).catch(()=>0n),
+      contracts.rank.totalNetworkVolume(user).catch(()=>0n),
+      contracts.rank.userRank(user).then(Number).catch(()=>0),
+    ]);
+
+    for(let rank=1; rank<=7; rank++){
+      const claimable = await contracts.rank.rankPoolClaimable(monthId, rank, user).catch(()=>0n);
+      if(claimable > 0n){
+        totalClaimable += claimable;
+        const pool = pools[rank-1];
+        rows.push({
+          monthId: String(monthId),
+          rank,
+          user,
+          claimableUSDT: fmt18s(claimable),
+          claimableWei: claimable.toString(),
+          poolUSDT: pool.poolUSDT,
+          poolWei: pool.poolWei,
+          personalVolumeUSDT: fmt18s(personal),
+          qualifiedNetworkVolumeUSDT: fmt18s(qualified),
+          totalNetworkVolumeUSDT: fmt18s(totalNet),
+          userRank: currentRank
+        });
+      }
+    }
+  }
+
+  const report = {
+    protocol: 'ATLASH',
+    type: 'rank-close-qualified-users',
+    monthId: String(monthId),
+    generatedAt: new Date().toISOString(),
+    startedAt,
+    generatedBy: walletAddr || '',
+    network: activeNet?.label || 'BSC Mainnet',
+    core: addrs.core || '',
+    rankContract: addrs.rank || '',
+    totalUsersScanned: totalUsers,
+    totalQualifiedRows: rows.length,
+    totalClaimableWei: totalClaimable.toString(),
+    totalClaimableUSDT: fmt18s(totalClaimable),
+    pools,
+    rows
+  };
+  lastRankCloseReport = report;
+
+  if(summaryEl){
+    summaryEl.innerHTML = `Mes <strong>${monthId}</strong> · Usuarios escaneados: <strong>${totalUsers.toLocaleString('es-CO')}</strong> · Registros calificados: <strong>${rows.length.toLocaleString('es-CO')}</strong> · Claimable total: <strong style="color:var(--green);">${fmt18s(totalClaimable)} USDT</strong>`;
+  }
+  if(tableEl){
+    const preview = rows.slice(0, 80);
+    tableEl.innerHTML = rows.length ? `<table class="tbl">
+      <thead><tr><th>Rank</th><th>Usuario</th><th>Claimable</th><th>Vol. calificado</th><th>Rango actual</th></tr></thead>
+      <tbody>${preview.map(r=>`<tr>
+        <td><strong>R${r.rank}</strong></td>
+        <td>${short(r.user)}<br><span style="font-size:10px;color:var(--gray-400);">${r.user}</span></td>
+        <td style="font-weight:800;color:var(--green);">${r.claimableUSDT} USDT</td>
+        <td>${r.qualifiedNetworkVolumeUSDT} USDT</td>
+        <td>${r.userRank}</td>
+      </tr>`).join('')}</tbody>
+    </table>${rows.length>80?`<div style="font-size:11px;color:var(--gray-400);margin-top:8px;">Vista previa de 80 registros. Descarga el CSV/JSON para ver todo.</div>`:''}`
+      : '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin usuarios claimable</div><div class="empty-desc">No se encontraron usuarios con monto claimable para este mes.</div></div>';
+  }
+
+  toast('Reporte de cierre generado','success');
+  if(autoDownload){
+    downloadLastRankCloseJSON();
+    downloadLastRankCloseCSV();
+  }
+  return report;
+}
 
 
 // ═══════════════════════════════════════════════════════════
