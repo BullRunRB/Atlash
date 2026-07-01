@@ -982,6 +982,28 @@
         <!-- ── RANK SCAN ── -->
         <div id="adm-pane-scan" style="display:none;">
           <div class="alert alert-info" style="margin-bottom:12px;"><span>ℹ</span><span>El Rank Scan lee todos los usuarios on-chain automáticamente. No necesitas enviar lista de candidatos. Procesa en batches hasta que el cursor alcance totalUsers().</span></div>
+
+          <div class="panel" style="margin-bottom:16px;border:1.5px solid var(--blue-line);">
+            <div class="panel-head">
+              <div class="panel-title">💰 Dinero disponible por Rank Pool del mes</div>
+              <button class="btn-outline" onclick="loadRankPoolsForScanMonth()" style="padding:5px 12px;font-size:11px;">↻ Consultar pools</button>
+            </div>
+            <div class="panel-body">
+              <div class="alert alert-info" style="margin-bottom:12px;">
+                <span>ℹ</span>
+                <span>Antes de cerrar un mes, consulta cuánto USDT hay acumulado en cada pool R1–R7 para ese monthId. Usa el mismo monthId que vas a cerrar en Rank Scan.</span>
+              </div>
+              <div class="adm-row" style="margin-bottom:12px;">
+                <input class="addr-inp" id="adm-rank-pool-month" placeholder="monthId a consultar, ej. 7" style="max-width:210px;" onkeydown="if(event.key==='Enter')loadRankPoolsForScanMonth()"/>
+                <button class="btn-primary" onclick="loadRankPoolsForScanMonth()">Consultar mes</button>
+                <button class="btn-ghost" onclick="useScanMonthForRankPools()">Usar monthId del scan</button>
+              </div>
+              <div id="adm-rank-pool-summary" style="margin-bottom:12px;font-family:var(--mono);font-size:12px;color:var(--gray-600);"></div>
+              <div id="adm-rank-pool-table">
+                <div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin consulta</div><div class="empty-desc">Ingresa el monthId, por ejemplo 7, para ver el dinero disponible en cada pool.</div></div>
+              </div>
+            </div>
+          </div>
           <div class="panel">
             <div class="panel-head"><div class="panel-title">🔍 Control de Rank Scan</div><button class="btn-outline" onclick="loadAdminScanStatus()" style="padding:5px 12px;font-size:11px;">↻ Estado</button></div>
             <div class="panel-body">
@@ -4418,7 +4440,7 @@ function switchAdminTab(name) {
   if (name === 'rank') loadAdminRankConfig();
   if (name === 'core') loadAdminCoreStatus();
   if (name === 'burn') loadAdminBurnStatus();
-  if (name === 'scan') loadAdminScanStatus();
+  if (name === 'scan') { loadAdminScanStatus(); try{ prefillRankPoolMonthFromScan(); loadRankPoolsForScanMonth(false); }catch(e){} }
 }
 
 async function loadAdminTab() {
@@ -5354,10 +5376,87 @@ async function admBurnBatch() {
 }
 
 // ── RANK SCAN ──
+
+function setTextSafe(id, value){
+  const el = document.getElementById(id);
+  if(el) el.textContent = value;
+}
+
+function prefillRankPoolMonthFromScan(){
+  const poolMonth = document.getElementById('adm-rank-pool-month');
+  const scanMonth = document.getElementById('adm-scan-month');
+  if(poolMonth && scanMonth && !poolMonth.value && scanMonth.value) poolMonth.value = scanMonth.value;
+}
+
+function useScanMonthForRankPools(){
+  const poolMonth = document.getElementById('adm-rank-pool-month');
+  const scanMonth = document.getElementById('adm-scan-month');
+  if(poolMonth && scanMonth) poolMonth.value = scanMonth.value || poolMonth.value;
+  loadRankPoolsForScanMonth();
+}
+
+async function loadRankPoolsForScanMonth(showToast=true){
+  const monthInput = document.getElementById('adm-rank-pool-month');
+  const scanInput  = document.getElementById('adm-scan-month');
+  const tableEl    = document.getElementById('adm-rank-pool-table');
+  const summaryEl  = document.getElementById('adm-rank-pool-summary');
+  if(!tableEl || !summaryEl) return;
+  if(!contracts.rank){
+    tableEl.innerHTML = '<div class="alert alert-warn"><span>⚠</span><span>RanksModule no está inicializado.</span></div>';
+    return;
+  }
+  let monthId = (monthInput?.value || scanInput?.value || '').trim();
+  if(!monthId){
+    tableEl.innerHTML = '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Ingresa monthId</div><div class="empty-desc">Ejemplo: para cierre del mes 7, coloca 7.</div></div>';
+    summaryEl.textContent = '';
+    return;
+  }
+  if(!/^\d+$/.test(monthId)){
+    toast('monthId inválido','error');
+    return;
+  }
+  if(monthInput && !monthInput.value) monthInput.value = monthId;
+  tableEl.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:8px;">Consultando pools del mes '+monthId+'…</div>';
+  summaryEl.textContent = 'Leyendo R1–R7 en blockchain…';
+  try{
+    const rows = [];
+    let total = 0n;
+    for(let r=1;r<=7;r++){
+      const [pool, finalized, started, cursor, candidates] = await Promise.all([
+        contracts.rank.rankPoolByMonth(monthId, r).catch(()=>0n),
+        contracts.rank.rankPoolFinalized(monthId, r).catch(()=>false),
+        contracts.rank.rankPoolScanStarted(monthId, r).catch(()=>false),
+        contracts.rank.rankPoolScanCursor(monthId, r).catch(()=>0n),
+        contracts.rank.scannedRankPoolCandidateCount(monthId, r).catch(()=>0n),
+      ]);
+      total += BigInt(pool);
+      rows.push({rank:r,pool:BigInt(pool),finalized,started,cursor,candidates});
+    }
+    summaryEl.innerHTML = `Mes <strong>${monthId}</strong> · Total Rank Pools: <strong style="color:var(--blue);">${fmt18s(total)} USDT</strong>`;
+    tableEl.innerHTML = `<table class="tbl">
+      <thead><tr><th>Rango</th><th>Pool mes ${monthId}</th><th>Estado cierre</th><th>Scan</th><th>Candidatos</th></tr></thead>
+      <tbody>${rows.map(x=>`<tr>
+        <td><strong>R${x.rank}</strong></td>
+        <td style="font-weight:800;color:${x.pool>0n?'var(--blue)':'var(--gray-400)'};">${fmt18s(x.pool)} USDT</td>
+        <td><span class="badge ${x.finalized?'badge-green':'badge-amber'}">${x.finalized?'Finalizado':'Pendiente'}</span></td>
+        <td><span class="badge ${x.started?'badge-blue':'badge-gray'}">${x.started?'Iniciado':'No iniciado'}</span><br><span style="font-size:10px;color:var(--gray-400);font-family:var(--mono);">Cursor: ${Number(x.cursor)}</span></td>
+        <td>${Number(x.candidates).toLocaleString('es-CO')}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+    if(showToast) toast('Pools del mes '+monthId+' cargados','success');
+  }catch(e){
+    console.error('[loadRankPoolsForScanMonth]', e);
+    tableEl.innerHTML = '<div class="alert alert-warn"><span>⚠</span><span>Error consultando pools: '+(e.message||String(e)).slice(0,120)+'</span></div>';
+    summaryEl.textContent = '';
+  }
+}
+
 async function loadAdminScanStatus() {
   const monthId= document.getElementById('adm-scan-month')?.value?.trim();
   const rank   = parseInt(document.getElementById('adm-scan-rank')?.value||'0');
   const el     = document.getElementById('adm-scan-status');
+  const poolMonthEl = document.getElementById('adm-rank-pool-month');
+  if(poolMonthEl && monthId && !poolMonthEl.value) poolMonthEl.value = monthId;
   if(!el||!contracts.rank) return;
   if(!monthId||!rank){el.textContent='Ingresa monthId y rango primero';return;}
   try{
